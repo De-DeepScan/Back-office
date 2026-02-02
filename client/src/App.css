@@ -1,300 +1,233 @@
-:root {
-  --color-primary: #00ffff;
-  --color-primary-glow-soft: rgba(0, 255, 255, 0.3);
-  --color-primary-glow-medium: rgba(0, 255, 255, 0.5);
-  --color-danger: #ff0000;
-  --color-danger-glow: rgba(255, 0, 0, 0.3);
-  --color-bg-deep: #0a0a0a;
-  --color-bg-surface: #1a1a1a;
-  --color-bg-elevated: #242424;
-  --color-text-primary: rgba(255, 255, 255, 0.87);
-  --color-text-secondary: rgba(255, 255, 255, 0.6);
-  --color-text-muted: rgba(255, 255, 255, 0.4);
-  --font-primary: "Courier New", Courier, monospace;
-}
-
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-body {
-  background: var(--color-bg-deep);
-  color: var(--color-text-primary);
-  font-family: var(--font-primary);
+/* === DASHBOARD LAYOUT === */
+.dashboard {
   min-height: 100vh;
-  background-image:
-    linear-gradient(rgba(0, 255, 255, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0, 255, 255, 0.03) 1px, transparent 1px);
-  background-size: 50px 50px;
-}
-
-/* CRT overlay */
-.crt-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  z-index: 1000;
-}
-
-.crt-overlay::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: repeating-linear-gradient(
-    0deg,
-    rgba(0, 0, 0, 0.15),
-    rgba(0, 0, 0, 0.15) 1px,
-    transparent 1px,
-    transparent 2px
-  );
-}
-
-.crt-overlay::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 4px;
-  background: rgba(0, 255, 255, 0.1);
-  animation: scanline 4s linear infinite;
-}
-
-@keyframes scanline {
-  0% { transform: translateY(-100%); }
-  100% { transform: translateY(100vh); }
-}
-
-/* Layout */
-.app {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-2xl);
 }
 
 .header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 2rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid rgba(0, 255, 255, 0.2);
-}
-
-.title {
-  font-size: 1.5rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.8em;
-  color: var(--color-primary);
-  text-shadow: 0 0 10px var(--color-primary-glow-soft);
-}
-
-/* Status badge */
-.status-badge {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.4rem 0.75rem;
-  font-size: 0.7rem;
-  text-transform: uppercase;
-  letter-spacing: 2px;
-  border: 1px solid;
-  border-radius: 4px;
-}
-
-.status-badge.online {
-  color: var(--color-primary);
-  border-color: var(--color-primary);
-}
-
-.status-badge.offline {
-  color: var(--color-danger);
-  border-color: var(--color-danger);
-}
-
-.status-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: currentColor;
-  animation: statusPulse 1s ease-in-out infinite;
-}
-
-@keyframes statusPulse {
-  0%, 100% { opacity: 1; box-shadow: 0 0 5px currentColor; }
-  50% { opacity: 0.5; box-shadow: 0 0 10px currentColor; }
-}
-
-/* Empty state */
-.empty-state {
   text-align: center;
-  padding: 4rem 2rem;
-  border: 1px dashed rgba(0, 255, 255, 0.2);
-  color: var(--color-text-muted);
-  font-size: 0.9rem;
+  margin-bottom: var(--space-2xl);
 }
 
-.empty-hint {
-  margin-top: 0.5rem;
-  font-size: 0.7rem;
-  color: var(--color-text-muted);
-}
-
-/* Games grid */
-.games-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-  gap: 1.5rem;
-}
-
-/* Game card */
-.game-card {
-  background: var(--color-bg-surface);
-  border: 1px solid rgba(0, 255, 255, 0.2);
-  padding: 1.5rem;
-  animation: cardAppear 0.3s ease-out;
-}
-
-.game-card:hover {
-  border-color: var(--color-primary);
-  box-shadow: 0 0 20px rgba(0, 255, 255, 0.1);
-}
-
-@keyframes cardAppear {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.game-header {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  margin-bottom: 1rem;
-}
-
-.game-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: var(--color-primary);
-  box-shadow: 0 0 8px var(--color-primary-glow-medium);
-  flex-shrink: 0;
-}
-
-.game-name {
-  font-size: 1rem;
+.header h1 {
+  font-family: var(--font-primary);
+  font-size: var(--text-2xl);
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 2px;
-  color: var(--color-text-primary);
-}
-
-.game-id {
-  margin-left: auto;
-  font-size: 0.6rem;
-  color: var(--color-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 1px;
-}
-
-/* State section */
-.game-state {
-  margin-bottom: 1rem;
-  padding: 0.75rem;
-  background: var(--color-bg-deep);
-  border: 1px solid rgba(0, 255, 255, 0.1);
-  position: relative;
-}
-
-.state-label {
-  position: absolute;
-  top: -8px;
-  left: 8px;
-  padding: 0 0.5rem;
-  background: var(--color-bg-deep);
-  font-size: 0.6rem;
-  letter-spacing: 3px;
+  letter-spacing: 0.5em;
+  margin: 0;
   color: var(--color-primary);
+  text-shadow: 0 0 20px var(--color-primary-glow-medium);
+}
+
+.subtitle {
+  font-family: var(--font-primary);
+  font-size: var(--text-sm);
   text-transform: uppercase;
+  letter-spacing: 3px;
+  color: var(--color-text-muted);
+  margin-top: var(--space-sm);
 }
 
-.state-grid {
+/* === CONTROLS SECTION === */
+.controls {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.button-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-  gap: 0.5rem;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-xl);
+  max-width: 600px;
+  width: 100%;
 }
 
-.state-item {
+/* === CONTROL BUTTONS (Design System) === */
+.control-btn {
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  padding: var(--space-xl) var(--space-lg);
+  min-height: 140px;
+
+  font-family: var(--font-primary);
+  background: var(--color-bg-elevated);
+  border: 2px solid var(--color-primary);
+  border-radius: var(--border-radius-none);
+
+  cursor: pointer;
+  transition: all var(--duration-fast) ease;
 }
 
-.state-key {
-  font-size: 0.6rem;
-  color: var(--color-text-muted);
+.control-btn:hover:not(:disabled) {
+  background: rgba(0, 255, 255, 0.1);
+  box-shadow: var(--shadow-glow-medium);
+  transform: translateY(-2px);
+}
+
+.control-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.control-btn:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.btn-label {
+  font-size: var(--text-lg);
+  font-weight: 600;
   text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--color-primary);
+}
+
+.btn-description {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  text-align: center;
   letter-spacing: 1px;
 }
 
-.state-value {
-  font-size: 0.8rem;
-  color: var(--color-text-secondary);
+/* === BUTTON VARIANTS === */
+
+/* Primary (blue/cyan) - Enable AI */
+.control-btn.primary {
+  border-color: var(--color-primary);
 }
 
-.state-value.true {
+.control-btn.primary .btn-label {
   color: var(--color-primary);
 }
 
-.state-value.false {
-  color: var(--color-danger);
-}
-
-/* Action buttons */
-.game-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-
-.btn-action {
-  font-family: var(--font-primary);
-  font-size: 0.75rem;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 2px;
-  padding: 0.5rem 1rem;
-  background: var(--color-bg-elevated);
-  color: var(--color-primary);
-  border: 1px solid var(--color-primary);
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.btn-action:hover {
+.control-btn.primary:hover:not(:disabled) {
   background: rgba(0, 255, 255, 0.1);
-  box-shadow: 0 0 15px rgba(0, 255, 255, 0.3);
+  box-shadow: var(--shadow-glow-medium);
 }
 
-.btn-action:active {
-  transform: scale(0.97);
+/* Success (green) - Start */
+.control-btn.success {
+  border-color: #22c55e;
 }
 
-.btn-action.danger {
-  color: var(--color-danger);
+.control-btn.success .btn-label {
+  color: #22c55e;
+}
+
+.control-btn.success:hover:not(:disabled) {
+  background: rgba(34, 197, 94, 0.1);
+  box-shadow: 0 0 20px rgba(34, 197, 94, 0.4);
+}
+
+/* Danger (red) - Reset */
+.control-btn.danger {
   border-color: var(--color-danger);
 }
 
-.btn-action.danger:hover {
+.control-btn.danger .btn-label {
+  color: var(--color-danger);
+}
+
+.control-btn.danger:hover:not(:disabled) {
   background: rgba(255, 0, 0, 0.1);
-  box-shadow: 0 0 15px var(--color-danger-glow);
+  box-shadow: var(--shadow-evil-medium);
+}
+
+/* Warning (orange) - Disable AI */
+.control-btn.warning {
+  border-color: #f59e0b;
+}
+
+.control-btn.warning .btn-label {
+  color: #f59e0b;
+}
+
+.control-btn.warning:hover:not(:disabled) {
+  background: rgba(245, 158, 11, 0.1);
+  box-shadow: 0 0 20px rgba(245, 158, 11, 0.4);
+}
+
+/* === STATUS INDICATORS === */
+.spinner {
+  position: absolute;
+  top: var(--space-md);
+  right: var(--space-md);
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--color-text-muted);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.check,
+.error-icon {
+  position: absolute;
+  top: var(--space-md);
+  right: var(--space-md);
+  font-size: var(--text-lg);
+  font-weight: bold;
+}
+
+.check {
+  color: #22c55e;
+  text-shadow: 0 0 10px rgba(34, 197, 94, 0.5);
+}
+
+.error-icon {
+  color: var(--color-danger);
+  text-shadow: 0 0 10px var(--color-danger-glow);
+}
+
+/* === STATUS BAR === */
+.status-bar {
+  text-align: center;
+  padding: var(--space-lg);
+  font-family: var(--font-primary);
+  font-size: var(--text-sm);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--color-text-muted);
+  margin-top: var(--space-2xl);
+  border-top: 1px solid rgba(0, 255, 255, 0.1);
+}
+
+.status-bar strong {
+  color: var(--color-primary);
+}
+
+/* === RESPONSIVE === */
+@media (max-width: 600px) {
+  .dashboard {
+    padding: var(--space-lg);
+  }
+
+  .header h1 {
+    font-size: 1.5rem;
+    letter-spacing: 0.3em;
+  }
+
+  .button-grid {
+    grid-template-columns: 1fr;
+    gap: var(--space-lg);
+  }
+
+  .control-btn {
+    min-height: 120px;
+    padding: var(--space-lg);
+  }
 }
