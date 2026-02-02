@@ -179,18 +179,39 @@ function App() {
             <div className="instances-bar">
               {activeGroup.instances
                 .filter((inst) => inst.role)
-                .map((inst) => (
-                  <div
-                    key={inst.gameId}
-                    className={`instance-card ${inst.role ?? ""}`}
-                  >
-                    <span className="instance-dot connected" />
-                    <span className="instance-role">{getRoleName(inst)}</span>
-                    <span className="instance-state">
-                      {inst.state.gameStarted ? "En jeu" : "Connecté"}
-                    </span>
-                  </div>
-                ))}
+                .map((inst) => {
+                  const resetStatus = getStatus(inst.gameId, "reset");
+                  const hasReset = inst.availableActions.some(
+                    (a) => a.id === "reset"
+                  );
+                  return (
+                    <div
+                      key={inst.gameId}
+                      className={`instance-card ${inst.role ?? ""}`}
+                    >
+                      <span className="instance-dot connected" />
+                      <span className="instance-role">{getRoleName(inst)}</span>
+                      <span className="instance-state">
+                        {inst.state.gameStarted ? "En jeu" : "Connecté"}
+                      </span>
+                      {hasReset && (
+                        <button
+                          className={`instance-reset-btn ${resetStatus}`}
+                          onClick={() => sendCommand(inst.gameId, "reset")}
+                          disabled={resetStatus === "loading"}
+                        >
+                          {resetStatus === "loading"
+                            ? "..."
+                            : resetStatus === "success"
+                              ? "✓"
+                              : resetStatus === "error"
+                                ? "✕"
+                                : "Reset"}
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
               {/* Show disconnected roles if only one instance */}
               {activeGroup.instances.length === 1 &&
                 activeGroup.instances[0].role && (
@@ -220,74 +241,46 @@ function App() {
                 ))}
             </div>
 
-            {/* Shared actions — everything except reset */}
+            {/* Shared actions */}
             {activeGroup.instances.length > 0 && (
               <div className="button-grid">
-                {activeGroup.instances[0].availableActions
-                  .filter((a) => a.id !== "reset")
-                  .map((action) => {
-                    const allStatuses = activeGroup.instances.map((inst) =>
-                      getStatus(inst.gameId, action.id)
-                    );
-                    const isLoading = allStatuses.some((s) => s === "loading");
-                    const isSuccess = allStatuses.every((s) => s === "success");
-                    const isError = allStatuses.some((s) => s === "error");
+                {activeGroup.instances[0].availableActions.map((action) => {
+                  const allStatuses = activeGroup.instances.map((inst) =>
+                    getStatus(inst.gameId, action.id)
+                  );
+                  const isLoading = allStatuses.some((s) => s === "loading");
+                  const isSuccess = allStatuses.every((s) => s === "success");
+                  const isError = allStatuses.some((s) => s === "error");
 
-                    let btnStatus: ActionStatus = "idle";
-                    if (isLoading) btnStatus = "loading";
-                    else if (isSuccess) btnStatus = "success";
-                    else if (isError) btnStatus = "error";
+                  let feedbackStatus: ActionStatus = "idle";
+                  if (isLoading) feedbackStatus = "loading";
+                  else if (isSuccess) feedbackStatus = "success";
+                  else if (isError) feedbackStatus = "error";
 
-                    return (
-                      <button
-                        key={action.id}
-                        className={`control-btn ${getVariant(action.id)} ${btnStatus}`}
-                        onClick={() =>
-                          sendToAll(activeGroup.instances, action.id)
-                        }
-                        disabled={isLoading}
-                      >
-                        <span className="btn-label">
-                          {isLoading ? "Envoi..." : action.label}
+                  return (
+                    <button
+                      key={action.id}
+                      className={`control-btn ${getVariant(action.id)}`}
+                      onClick={() =>
+                        sendToAll(activeGroup.instances, action.id)
+                      }
+                      disabled={isLoading}
+                    >
+                      <span className="btn-label">{action.label}</span>
+                      {feedbackStatus !== "idle" && (
+                        <span className={`btn-feedback ${feedbackStatus}`}>
+                          {feedbackStatus === "loading"
+                            ? "..."
+                            : feedbackStatus === "success"
+                              ? "✓"
+                              : "✕"}
                         </span>
-                      </button>
-                    );
-                  })}
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             )}
-
-            {/* Per-instance reset only, if multiple instances */}
-            {activeGroup.instances.length > 1 &&
-              activeGroup.instances[0].availableActions.some(
-                (a) => a.id === "reset"
-              ) && (
-                <div className="per-instance">
-                  <p className="section-label"># Réinitialiser par rôle</p>
-                  {activeGroup.instances.map((inst) => {
-                    const resetAction = inst.availableActions.find(
-                      (a) => a.id === "reset"
-                    );
-                    if (!resetAction) return null;
-                    const status = getStatus(inst.gameId, "reset");
-                    return (
-                      <div key={inst.gameId} className="instance-controls">
-                        <span className="instance-label">
-                          {getRoleName(inst)}
-                        </span>
-                        <div className="instance-actions">
-                          <button
-                            className={`instance-btn danger ${status}`}
-                            onClick={() => sendCommand(inst.gameId, "reset")}
-                            disabled={status === "loading"}
-                          >
-                            {status === "loading" ? "..." : resetAction.label}
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
           </div>
         ) : null}
       </main>
