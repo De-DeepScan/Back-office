@@ -1,9 +1,11 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { io } from "socket.io-client";
 import "./App.css";
 
-const SERVER_URL = "http://localhost:3000";
-const socket = io(SERVER_URL);
+const API_URL = "http://localhost:3000";
+const socket = io(API_URL);
+
+type ActionStatus = "idle" | "loading" | "success" | "error";
 
 interface GameAction {
   id: string;
@@ -14,21 +16,58 @@ interface GameAction {
 interface ConnectedGame {
   socketId: string;
   gameId: string;
+  role?: string;
   name: string;
   availableActions: GameAction[];
   state: Record<string, unknown>;
 }
 
+interface GameGroup {
+  baseId: string;
+  instances: ConnectedGame[];
+}
+
+function groupGames(games: ConnectedGame[]): GameGroup[] {
+  const groups = new Map<string, ConnectedGame[]>();
+  for (const game of games) {
+    // gameId is "labyrinthe:explorer" or "labyrinthe" — group by base
+    const baseId = game.gameId.split(":")[0];
+    const list = groups.get(baseId) ?? [];
+    list.push(game);
+    groups.set(baseId, list);
+  }
+  return [...groups.entries()].map(([baseId, instances]) => ({
+    baseId,
+    instances,
+  }));
+}
+
+function getVariant(actionId: string): string {
+  if (actionId === "reset") return "danger";
+  if (actionId === "start") return "success";
+  if (actionId === "disable_ai") return "warning";
+  return "primary";
+}
+
+function getRoleName(game: ConnectedGame): string {
+  if (game.role === "explorer") return "Explorateur";
+  if (game.role === "protector") return "Protecteur";
+  if (game.role) return game.role;
+  return game.name;
+}
+
 function App() {
   const [games, setGames] = useState<ConnectedGame[]>([]);
   const [connected, setConnected] = useState(false);
+  const [activeTab, setActiveTab] = useState<string | null>(null);
+  const [statuses, setStatuses] = useState<Record<string, ActionStatus>>({});
 
   useEffect(() => {
     socket.on("connect", () => setConnected(true));
     socket.on("disconnect", () => setConnected(false));
     socket.on("games_updated", (data: ConnectedGame[]) => setGames(data));
 
-    fetch(`${SERVER_URL}/api/games`)
+    fetch(`${API_URL}/api/games`)
       .then((r) => r.json())
       .then(setGames)
       .catch(() => {});
@@ -40,83 +79,184 @@ function App() {
     };
   }, []);
 
-  const sendCommand = useCallback(async (gameId: string, action: string) => {
-    await fetch(`${SERVER_URL}/api/games/${gameId}/command`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action, payload: {} }),
-    });
+  const groups = useMemo(() => groupGames(games), [games]);
+
+  // Auto-select first tab
+  useEffect(() => {
+    if (
+      groups.length > 0 &&
+      (!activeTab || !groups.find((g) => g.baseId === activeTab))
+    ) {
+      setActiveTab(groups[0].baseId);
+    }
+    if (groups.length === 0) {
+      setActiveTab(null);
+    }
+  }, [groups, activeTab]);
+
+  const activeGroup = groups.find((g) => g.baseId === activeTab) ?? null;
+
+  const sendCommand = useCallback(async (gameId: string, actionId: string) => {
+    const key = `${gameId}:${actionId}`;
+    setStatuses((prev) => ({ ...prev, [key]: "loading" }));
+
+    try {
+      const response = await fetch(`${API_URL}/api/games/${gameId}/command`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: actionId, payload: {} }),
+      });
+
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+      setStatuses((prev) => ({ ...prev, [key]: "success" }));
+      setTimeout(() => {
+        setStatuses((prev) => ({ ...prev, [key]: "idle" }));
+      }, 1500);
+    } catch {
+      setStatuses((prev) => ({ ...prev, [key]: "error" }));
+      setTimeout(() => {
+        setStatuses((prev) => ({ ...prev, [key]: "idle" }));
+      }, 2500);
+    }
   }, []);
 
-  return (
-    <div className="app">
-      <div className="crt-overlay" />
+  const sendToAll = useCallback(
+    async (instances: ConnectedGame[], actionId: string) => {
+      await Promise.all(
+        instances.map((inst) => sendCommand(inst.gameId, actionId))
+      );
+    },
+    [sendCommand]
+  );
 
+  const getStatus = (gameId: string, actionId: string): ActionStatus => {
+    return statuses[`${gameId}:${actionId}`] ?? "idle";
+  };
+
+  return (
+    <div className="dashboard">
       <header className="header">
-        <h1 className="title">Gamemaster</h1>
-        <div className={`status-badge ${connected ? "online" : "offline"}`}>
-          <span className="status-dot" />
-          {connected ? "Connecté" : "Déconnecté"}
+        <h1>Gamemaster</h1>
+        <div className={`connection-badge ${connected ? "online" : "offline"}`}>
+          <span className="connection-dot" />
+          {connected ? "Serveur connecté" : "Serveur déconnecté"}
         </div>
       </header>
 
-      <main className="main">
+      {/* Tabs */}
+      {groups.length > 0 && (
+        <nav className="game-tabs">
+          {groups.map((group) => (
+            <button
+              key={group.baseId}
+              className={`game-tab ${activeTab === group.baseId ? "active" : ""}`}
+              onClick={() => setActiveTab(group.baseId)}
+            >
+              <span className="tab-dot" />
+              <span className="tab-name">
+                {group.instances[0]?.name.replace(/\s*-\s.*$/, "") ??
+                  group.baseId}
+              </span>
+              <span className="tab-count">
+                {group.instances.length} instance
+                {group.instances.length > 1 ? "s" : ""}
+              </span>
+            </button>
+          ))}
+        </nav>
+      )}
+
+      <main className="controls">
         {games.length === 0 ? (
           <div className="empty-state">
-            <p>Aucun mini-jeu connecté</p>
-            <p className="empty-hint">
-              En attente de connexions sur {SERVER_URL}...
-            </p>
+            <p className="empty-title">Aucun mini-jeu connecté</p>
+            <p className="empty-hint">En attente des connexions...</p>
           </div>
-        ) : (
-          <div className="games-grid">
-            {games.map((game) => (
-              <div key={game.gameId} className="game-card">
-                <div className="game-header">
-                  <span className="game-dot" />
-                  <h2 className="game-name">{game.name}</h2>
-                  <span className="game-id">{game.gameId}</span>
+        ) : activeGroup ? (
+          <div className="game-panel">
+            {/* Instances status */}
+            <div className="instances-bar">
+              {activeGroup.instances.map((inst) => (
+                <div key={inst.gameId} className="instance-badge">
+                  <span className="instance-dot connected" />
+                  <span className="instance-role">{getRoleName(inst)}</span>
+                  {inst.state.role ? (
+                    <span className="instance-state">
+                      {inst.state.gameStarted ? "En jeu" : "En attente"}
+                    </span>
+                  ) : null}
                 </div>
+              ))}
+            </div>
 
-                {Object.keys(game.state).length > 0 && (
-                  <div className="game-state">
-                    <span className="state-label"># State</span>
-                    <div className="state-grid">
-                      {Object.entries(game.state).map(([key, value]) => (
-                        <div key={key} className="state-item">
-                          <span className="state-key">{key}</span>
-                          <span
-                            className={`state-value ${
-                              value === true
-                                ? "true"
-                                : value === false
-                                  ? "false"
-                                  : ""
-                            }`}
-                          >
-                            {String(value ?? "null")}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
+            {/* Actions — send to all */}
+            {activeGroup.instances.length > 0 && (
+              <div className="button-grid">
+                {activeGroup.instances[0].availableActions.map((action) => {
+                  const allStatuses = activeGroup.instances.map((inst) =>
+                    getStatus(inst.gameId, action.id)
+                  );
+                  const isLoading = allStatuses.some((s) => s === "loading");
+                  const isSuccess = allStatuses.every((s) => s === "success");
+                  const isError = allStatuses.some((s) => s === "error");
 
-                <div className="game-actions">
-                  {game.availableActions.map((action) => (
+                  let btnStatus: ActionStatus = "idle";
+                  if (isLoading) btnStatus = "loading";
+                  else if (isSuccess) btnStatus = "success";
+                  else if (isError) btnStatus = "error";
+
+                  return (
                     <button
                       key={action.id}
-                      className={`btn-action ${action.id === "reset" ? "danger" : ""}`}
-                      onClick={() => sendCommand(game.gameId, action.id)}
+                      className={`control-btn ${getVariant(action.id)} ${btnStatus}`}
+                      onClick={() =>
+                        sendToAll(activeGroup.instances, action.id)
+                      }
+                      disabled={isLoading}
                     >
-                      {action.label}
+                      <span className="btn-label">
+                        {isLoading ? "Envoi..." : action.label}
+                      </span>
+                      <span className="btn-description">
+                        {activeGroup.instances.length > 1
+                          ? "Toutes les instances"
+                          : ""}
+                      </span>
                     </button>
-                  ))}
-                </div>
+                  );
+                })}
               </div>
-            ))}
+            )}
+
+            {/* Per-instance controls if multiple instances */}
+            {activeGroup.instances.length > 1 && (
+              <div className="per-instance">
+                <p className="section-label"># Par instance</p>
+                {activeGroup.instances.map((inst) => (
+                  <div key={inst.gameId} className="instance-controls">
+                    <span className="instance-label">{getRoleName(inst)}</span>
+                    <div className="instance-actions">
+                      {inst.availableActions.map((action) => {
+                        const status = getStatus(inst.gameId, action.id);
+                        return (
+                          <button
+                            key={action.id}
+                            className={`instance-btn ${getVariant(action.id)} ${status}`}
+                            onClick={() => sendCommand(inst.gameId, action.id)}
+                            disabled={status === "loading"}
+                          >
+                            {status === "loading" ? "..." : action.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-        )}
+        ) : null}
       </main>
     </div>
   );
