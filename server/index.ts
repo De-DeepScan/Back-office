@@ -1,4 +1,5 @@
 import express from "express";
+import cors from "cors";
 import { createServer } from "node:http";
 import { Server } from "socket.io";
 import {
@@ -13,6 +14,7 @@ const io = new Server(httpServer, {
   cors: { origin: "*" },
 });
 
+app.use(cors());
 app.use(express.json());
 
 // List connected mini-games
