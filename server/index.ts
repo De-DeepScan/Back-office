@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import { createServer } from "node:http";
 import { Server } from "socket.io";
+import cors from "cors";
 import {
   setupGamemaster,
   getConnectedGames,
