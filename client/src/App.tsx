@@ -27,11 +27,18 @@ interface GameGroup {
   instances: ConnectedGame[];
 }
 
+// Map of gameId prefixes that should be grouped under a single tab
+const GAME_GROUP_PREFIXES: Record<string, string> = {
+  "sidequest-computer": "sidequest",
+  "sidequest-uplink": "sidequest",
+};
+
 function groupGames(games: ConnectedGame[]): GameGroup[] {
   const groups = new Map<string, ConnectedGame[]>();
   for (const game of games) {
     // gameId is "labyrinthe:explorer" or "labyrinthe" — group by base
-    const baseId = game.gameId.split(":")[0];
+    const rawBase = game.gameId.split(":")[0];
+    const baseId = GAME_GROUP_PREFIXES[rawBase] ?? rawBase;
     const list = groups.get(baseId) ?? [];
     list.push(game);
     groups.set(baseId, list);
@@ -44,8 +51,14 @@ function groupGames(games: ConnectedGame[]): GameGroup[] {
 
 function getVariant(actionId: string): string {
   if (actionId === "reset") return "danger";
-  if (actionId === "start") return "success";
-  if (actionId === "disable_ai") return "warning";
+  if (
+    actionId === "start" ||
+    actionId === "start_screen" ||
+    actionId === "add_points"
+  )
+    return "success";
+  if (actionId === "disable_ai" || actionId === "skip_phase") return "warning";
+  if (actionId === "remove_points") return "danger";
   return "primary";
 }
 
@@ -54,6 +67,34 @@ function getRoleName(game: ConnectedGame): string {
   if (game.role === "protector") return "Protecteur";
   if (game.role) return game.role;
   return game.name;
+}
+
+function getSubGameClass(gameId: string): string {
+  const base = gameId.split(":")[0];
+  if (base === "sidequest-computer") return "sidequest-computer";
+  if (base === "sidequest-uplink") return "sidequest-uplink";
+  return "";
+}
+
+function formatState(
+  state: Record<string, unknown>
+): { label: string; value: string }[] {
+  const entries: { label: string; value: string }[] = [];
+  for (const [key, val] of Object.entries(state)) {
+    if (key === "startScreen")
+      entries.push({ label: "Écran", value: val ? "Actif" : "Inactif" });
+    else if (key === "isPasswordCorrect")
+      entries.push({ label: "Code", value: val ? "✓ Correct" : "En attente" });
+    else if (key === "passwordEntered") continue;
+    else if (key === "score")
+      entries.push({ label: "Score", value: String(val) });
+    else if (key === "phase")
+      entries.push({ label: "Phase", value: `${val}/6` });
+    else if (key === "in_progress")
+      entries.push({ label: "État", value: val ? "En cours" : "En attente" });
+    else if (key === "gameStarted") continue; // handled elsewhere
+  }
+  return entries;
 }
 
 function App() {
@@ -96,38 +137,64 @@ function App() {
 
   const activeGroup = groups.find((g) => g.baseId === activeTab) ?? null;
 
-  const sendCommand = useCallback(async (gameId: string, actionId: string) => {
-    const key = `${gameId}:${actionId}`;
-    setStatuses((prev) => ({ ...prev, [key]: "loading" }));
+  const sendCommand = useCallback(
+    async (
+      gameId: string,
+      actionId: string,
+      payload: Record<string, unknown> = {}
+    ) => {
+      const key = `${gameId}:${actionId}`;
+      setStatuses((prev) => ({ ...prev, [key]: "loading" }));
 
-    try {
-      const response = await fetch(`${API_URL}/api/games/${gameId}/command`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: actionId, payload: {} }),
-      });
+      try {
+        const response = await fetch(`${API_URL}/api/games/${gameId}/command`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: actionId, payload }),
+        });
 
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-      setStatuses((prev) => ({ ...prev, [key]: "success" }));
-      setTimeout(() => {
-        setStatuses((prev) => ({ ...prev, [key]: "idle" }));
-      }, 1500);
-    } catch {
-      setStatuses((prev) => ({ ...prev, [key]: "error" }));
-      setTimeout(() => {
-        setStatuses((prev) => ({ ...prev, [key]: "idle" }));
-      }, 2500);
-    }
-  }, []);
+        setStatuses((prev) => ({ ...prev, [key]: "success" }));
+        setTimeout(() => {
+          setStatuses((prev) => ({ ...prev, [key]: "idle" }));
+        }, 1500);
+      } catch {
+        setStatuses((prev) => ({ ...prev, [key]: "error" }));
+        setTimeout(() => {
+          setStatuses((prev) => ({ ...prev, [key]: "idle" }));
+        }, 2500);
+      }
+    },
+    []
+  );
+
+  const collectParams = useCallback(
+    (params: string[]): Record<string, unknown> | null => {
+      const payload: Record<string, unknown> = {};
+      for (const param of params) {
+        const value = window.prompt(`Valeur pour "${param}" :`);
+        if (value === null) return null; // cancelled
+        payload[param] = value;
+      }
+      return payload;
+    },
+    []
+  );
 
   const sendToAll = useCallback(
-    async (instances: ConnectedGame[], actionId: string) => {
+    async (instances: ConnectedGame[], action: GameAction) => {
+      let payload: Record<string, unknown> = {};
+      if (action.params && action.params.length > 0) {
+        const collected = collectParams(action.params);
+        if (!collected) return; // cancelled
+        payload = collected;
+      }
       await Promise.all(
-        instances.map((inst) => sendCommand(inst.gameId, actionId))
+        instances.map((inst) => sendCommand(inst.gameId, action.id, payload))
       );
     },
-    [sendCommand]
+    [sendCommand, collectParams]
   );
 
   const getStatus = (gameId: string, actionId: string): ActionStatus => {
@@ -230,57 +297,144 @@ function App() {
               {/* Non-role instances */}
               {activeGroup.instances
                 .filter((inst) => !inst.role)
-                .map((inst) => (
-                  <div key={inst.gameId} className="instance-card">
-                    <span className="instance-dot connected" />
-                    <span className="instance-role">{inst.name}</span>
-                    <span className="instance-state">
-                      {inst.state.gameStarted ? "En jeu" : "Connecté"}
-                    </span>
-                  </div>
-                ))}
-            </div>
-
-            {/* Shared actions */}
-            {activeGroup.instances.length > 0 && (
-              <div className="button-grid">
-                {activeGroup.instances[0].availableActions.map((action) => {
-                  const allStatuses = activeGroup.instances.map((inst) =>
-                    getStatus(inst.gameId, action.id)
-                  );
-                  const isLoading = allStatuses.some((s) => s === "loading");
-                  const isSuccess = allStatuses.every((s) => s === "success");
-                  const isError = allStatuses.some((s) => s === "error");
-
-                  let feedbackStatus: ActionStatus = "idle";
-                  if (isLoading) feedbackStatus = "loading";
-                  else if (isSuccess) feedbackStatus = "success";
-                  else if (isError) feedbackStatus = "error";
-
+                .map((inst) => {
+                  const stateEntries = formatState(inst.state);
                   return (
-                    <button
-                      key={action.id}
-                      className={`control-btn ${getVariant(action.id)}`}
-                      onClick={() =>
-                        sendToAll(activeGroup.instances, action.id)
-                      }
-                      disabled={isLoading}
+                    <div
+                      key={inst.gameId}
+                      className={`instance-card ${getSubGameClass(inst.gameId)}`}
                     >
-                      <span className="btn-label">{action.label}</span>
-                      {feedbackStatus !== "idle" && (
-                        <span className={`btn-feedback ${feedbackStatus}`}>
-                          {feedbackStatus === "loading"
-                            ? "..."
-                            : feedbackStatus === "success"
-                              ? "✓"
-                              : "✕"}
-                        </span>
+                      <span className="instance-dot connected" />
+                      <span className="instance-role">{inst.name}</span>
+                      <span className="instance-state">
+                        {inst.state.gameStarted || inst.state.in_progress
+                          ? "En jeu"
+                          : "Connecté"}
+                      </span>
+                      {stateEntries.length > 0 && (
+                        <div className="instance-state-details">
+                          {stateEntries.map((entry) => (
+                            <span key={entry.label} className="state-tag">
+                              <span className="state-tag-label">
+                                {entry.label}
+                              </span>
+                              <span className="state-tag-value">
+                                {entry.value}
+                              </span>
+                            </span>
+                          ))}
+                        </div>
                       )}
-                    </button>
+                    </div>
                   );
                 })}
-              </div>
-            )}
+            </div>
+
+            {/* Actions — per-instance sections when instances have different actions */}
+            {activeGroup.instances.length > 0 &&
+              (() => {
+                const allSameActions =
+                  activeGroup.instances.length <= 1 ||
+                  activeGroup.instances.every(
+                    (inst) =>
+                      JSON.stringify(inst.availableActions.map((a) => a.id)) ===
+                      JSON.stringify(
+                        activeGroup.instances[0].availableActions.map(
+                          (a) => a.id
+                        )
+                      )
+                  );
+
+                if (allSameActions) {
+                  return (
+                    <div className="button-grid">
+                      {activeGroup.instances[0].availableActions.map(
+                        (action) => {
+                          const allStatuses = activeGroup.instances.map(
+                            (inst) => getStatus(inst.gameId, action.id)
+                          );
+                          const isLoading = allStatuses.some(
+                            (s) => s === "loading"
+                          );
+                          const isSuccess = allStatuses.every(
+                            (s) => s === "success"
+                          );
+                          const isError = allStatuses.some(
+                            (s) => s === "error"
+                          );
+
+                          let feedbackStatus: ActionStatus = "idle";
+                          if (isLoading) feedbackStatus = "loading";
+                          else if (isSuccess) feedbackStatus = "success";
+                          else if (isError) feedbackStatus = "error";
+
+                          return (
+                            <button
+                              key={action.id}
+                              className={`control-btn ${getVariant(action.id)}`}
+                              onClick={() =>
+                                sendToAll(activeGroup.instances, action)
+                              }
+                              disabled={isLoading}
+                            >
+                              <span className="btn-label">{action.label}</span>
+                              {feedbackStatus !== "idle" && (
+                                <span
+                                  className={`btn-feedback ${feedbackStatus}`}
+                                >
+                                  {feedbackStatus === "loading"
+                                    ? "..."
+                                    : feedbackStatus === "success"
+                                      ? "✓"
+                                      : "✕"}
+                                </span>
+                              )}
+                            </button>
+                          );
+                        }
+                      )}
+                    </div>
+                  );
+                }
+
+                return activeGroup.instances.map((inst) => (
+                  <div key={inst.gameId} className="per-instance">
+                    <p className="section-label">{inst.name}</p>
+                    <div className="button-grid">
+                      {inst.availableActions.map((action) => {
+                        const status = getStatus(inst.gameId, action.id);
+                        return (
+                          <button
+                            key={action.id}
+                            className={`control-btn ${getVariant(action.id)}`}
+                            onClick={async () => {
+                              let payload: Record<string, unknown> = {};
+                              if (action.params && action.params.length > 0) {
+                                const collected = collectParams(action.params);
+                                if (!collected) return;
+                                payload = collected;
+                              }
+                              sendCommand(inst.gameId, action.id, payload);
+                            }}
+                            disabled={status === "loading"}
+                          >
+                            <span className="btn-label">{action.label}</span>
+                            {status !== "idle" && (
+                              <span className={`btn-feedback ${status}`}>
+                                {status === "loading"
+                                  ? "..."
+                                  : status === "success"
+                                    ? "✓"
+                                    : "✕"}
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ));
+              })()}
           </div>
         ) : null}
       </main>
