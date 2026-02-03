@@ -1,5 +1,7 @@
 import type { AriaState } from "../types/aria";
 import { AriaCatAvatar } from "./AriaCatAvatar";
+import { PasswordAdminView } from "./PasswordAdminView";
+import "./PasswordAdminView.css";
 
 type GameStatus = "connected" | "reconnecting" | "not_started";
 
@@ -162,6 +164,19 @@ export function InstanceCard({
             ? "Non démarré"
             : displayState}
       </span>
+
+      {/* Vue admin du mot de passe pour Sidequest */}
+      {expected.gameId === "sidequest" &&
+        instance &&
+        instance.state.currentScreen === "lockscreen" &&
+        instance.state.startScreen === true && (
+          <PasswordAdminView
+            passwordEntered={(instance.state.passwordEntered as string) || ""}
+            isPasswordCorrect={
+              (instance.state.isPasswordCorrect as boolean) || false
+            }
+          />
+        )}
     </div>
   );
 }
