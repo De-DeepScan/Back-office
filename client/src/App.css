@@ -628,10 +628,11 @@
 /* === ACTION BUTTONS === */
 .action-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 320px));
+  grid-template-columns: repeat(auto-fit, minmax(280px, 320px));
   justify-content: center;
   gap: var(--space-2xl);
-  width: 100%;
+  max-width: calc(3 * 320px + 2 * var(--space-2xl));
+  margin: 0 auto;
 }
 
 .action-button-wrapper {
@@ -1087,8 +1088,8 @@
 /* === RESPONSIVE === */
 @media (max-width: 900px) {
   .action-grid {
-    grid-template-columns: repeat(2, minmax(0, 320px));
-    justify-content: center;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 320px));
+    max-width: calc(2 * 320px + var(--space-2xl));
   }
 }
 
@@ -1153,8 +1154,8 @@
 
 @media (max-width: 600px) {
   .action-grid {
-    grid-template-columns: minmax(0, 500px);
-    justify-content: center;
+    grid-template-columns: minmax(280px, 500px);
+    max-width: 500px;
     gap: var(--space-lg);
   }
 
