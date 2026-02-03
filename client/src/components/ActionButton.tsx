@@ -31,6 +31,7 @@ interface GameAction {
   id: string;
   label: string;
   params?: string[];
+  disabled?: boolean;
 }
 
 interface ActionButtonProps {
@@ -124,9 +125,10 @@ export function ActionButton({
   return (
     <div className="action-button-wrapper" ref={menuRef}>
       <button
-        className={`action-button ${variant} ${status}`}
+        className={`action-button ${variant} ${status} ${action.disabled ? "game-in-progress" : ""}`}
         onClick={handleClick}
-        disabled={disabled || status === "loading"}
+        disabled={disabled || status === "loading" || action.disabled}
+        title={action.disabled ? "Le jeu est déjà en cours" : undefined}
       >
         {status === "loading" ? (
           <Loader2 className="action-icon spinning" size={20} />

@@ -18,6 +18,7 @@ interface GameAction {
   id: string;
   label: string;
   params?: string[];
+  disabled?: boolean;
 }
 
 type GameStatus = "connected" | "reconnecting" | "not_started";
@@ -218,6 +219,23 @@ function getFilteredSidequestActions(
     }
 
     return false;
+  });
+}
+
+// Filter Labyrinthe actions based on game state
+function getFilteredLabyrintheActions(
+  actions: GameAction[],
+  labyrintheState: Record<string, unknown> | null
+): GameAction[] {
+  if (!labyrintheState) return actions;
+
+  const gameStarted = labyrintheState.gameStarted as boolean;
+
+  return actions.map((action) => {
+    if (action.id === "start" && gameStarted) {
+      return { ...action, disabled: true };
+    }
+    return action;
   });
 }
 
@@ -680,7 +698,12 @@ function App() {
                           activeGroup.instances[0].availableActions,
                           activeGroup.instances[0].state
                         )
-                      : activeGroup.instances[0].availableActions;
+                      : activeGroup.baseId === "labyrinthe"
+                        ? getFilteredLabyrintheActions(
+                            activeGroup.instances[0].availableActions,
+                            activeGroup.instances[0].state
+                          )
+                        : activeGroup.instances[0].availableActions;
 
                 if (allSameActions) {
                   const regularActions = actionsToRender.filter(
