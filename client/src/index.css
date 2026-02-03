@@ -17,9 +17,9 @@
   --color-bg-deep: #0a0a0a;
   --color-bg-surface: #1a1a1a;
   --color-bg-elevated: #242424;
-  --color-text-primary: rgba(255, 255, 255, 0.87);
-  --color-text-secondary: rgba(255, 255, 255, 0.6);
-  --color-text-muted: rgba(255, 255, 255, 0.4);
+  --color-text-primary: rgba(255, 255, 255, 0.93);
+  --color-text-secondary: rgba(255, 255, 255, 0.72);
+  --color-text-muted: rgba(255, 255, 255, 0.55);
 
   /* Colors - Effects */
   --color-overlay-dark: rgba(0, 20, 20, 0.9);
@@ -43,6 +43,8 @@
   --space-lg: 1rem;
   --space-xl: 1.5rem;
   --space-2xl: 2rem;
+  --space-3xl: 3rem;
+  --space-4xl: 4rem;
 
   /* Borders */
   --border-radius-none: 0;
@@ -64,7 +66,7 @@
   /* Base styles */
   font-family: var(--font-primary);
   line-height: 1.5;
-  font-weight: 400;
+  font-weight: 450;
   color-scheme: dark;
   color: var(--color-text-primary);
   background-color: var(--color-bg-deep);

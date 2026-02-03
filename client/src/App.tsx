@@ -1,4 +1,12 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
+import { toast, Toaster } from "sonner";
+import { Navbar } from "./components/Navbar";
+import { EventTimeline } from "./components/EventTimeline";
+import type { TimelineEvent } from "./components/EventTimeline";
+import { InstanceCard } from "./components/InstanceCard";
+import { ActionButton } from "./components/ActionButton";
+import { ConfirmDialog } from "./components/ConfirmDialog";
+import type { AriaState } from "./types/aria";
 import "./App.css";
 import VoiceCloner from "./VoiceCloner";
 import SoundPad from "./SoundPad";
@@ -10,23 +18,68 @@ interface GameAction {
   id: string;
   label: string;
   params?: string[];
+  disabled?: boolean;
 }
 
+type GameStatus = "connected" | "reconnecting" | "not_started";
+
 interface ConnectedGame {
-  socketId: string;
+  socketId: string | null;
   gameId: string;
   role?: string;
   name: string;
   availableActions: GameAction[];
   state: Record<string, unknown>;
+  status: GameStatus;
+}
+
+interface ExpectedInstance {
+  gameId: string;
+  name: string;
+  role?: string;
+}
+
+interface PredefinedGame {
+  baseId: string;
+  displayName: string;
+  expectedInstances: ExpectedInstance[];
 }
 
 interface GameGroup {
   baseId: string;
+  displayName: string;
   instances: ConnectedGame[];
+  expectedInstances: ExpectedInstance[];
+  groupStatus: GameStatus;
 }
 
-function groupGames(games: ConnectedGame[]): GameGroup[] {
+// ARIA state interface imported from types/aria.ts
+
+// Predefined games that should always be visible
+const PREDEFINED_GAMES: PredefinedGame[] = [
+  {
+    baseId: "labyrinthe",
+    displayName: "Labyrinthe",
+    expectedInstances: [
+      { gameId: "labyrinthe:explorer", name: "Explorateur", role: "explorer" },
+      { gameId: "labyrinthe:protector", name: "Protecteur", role: "protector" },
+    ],
+  },
+  {
+    baseId: "sidequest",
+    displayName: "Sidequest",
+    expectedInstances: [{ gameId: "sidequest", name: "Sidequest" }],
+  },
+  {
+    baseId: "aria",
+    displayName: "ARIA",
+    expectedInstances: [{ gameId: "aria", name: "ARIA Cat" }],
+  },
+];
+
+function groupConnectedGames(
+  games: ConnectedGame[]
+): Map<string, ConnectedGame[]> {
   const groups = new Map<string, ConnectedGame[]>();
   for (const game of games) {
     const baseId = game.gameId.split(":")[0];
@@ -34,24 +87,153 @@ function groupGames(games: ConnectedGame[]): GameGroup[] {
     list.push(game);
     groups.set(baseId, list);
   }
-  return [...groups.entries()].map(([baseId, instances]) => ({
-    baseId,
-    instances,
-  }));
+  return groups;
 }
 
-function getVariant(actionId: string): string {
-  if (actionId === "reset") return "danger";
-  if (actionId === "start") return "success";
-  if (actionId === "disable_ai") return "warning";
+function mergeWithPredefined(games: ConnectedGame[]): GameGroup[] {
+  const connectedMap = groupConnectedGames(games);
+
+  return PREDEFINED_GAMES.map((def) => {
+    const instances = connectedMap.get(def.baseId) ?? [];
+
+    let groupStatus: GameStatus = "not_started";
+    if (instances.some((i) => i.status === "connected")) {
+      groupStatus = "connected";
+    } else if (instances.some((i) => i.status === "reconnecting")) {
+      groupStatus = "reconnecting";
+    }
+
+    return {
+      baseId: def.baseId,
+      displayName: def.displayName,
+      instances,
+      expectedInstances: def.expectedInstances,
+      groupStatus,
+    };
+  });
+}
+
+function getVariant(
+  actionId: string
+): "primary" | "success" | "danger" | "warning" {
+  if (
+    actionId === "reset" ||
+    actionId === "enable_evil" ||
+    actionId === "remove_points" ||
+    actionId === "disable_speaking"
+  )
+    return "danger";
+  if (
+    actionId === "start" ||
+    actionId === "start_screen" ||
+    actionId === "add_points" ||
+    actionId === "disable_evil" ||
+    actionId === "enable_speaking"
+  )
+    return "success";
+  if (
+    actionId === "disable_ai" ||
+    actionId === "skip_phase" ||
+    actionId === "enable_dilemma" ||
+    actionId === "disable_dilemma"
+  )
+    return "warning";
   return "primary";
 }
 
-function getRoleName(game: ConnectedGame): string {
-  if (game.role === "explorer") return "Explorateur";
-  if (game.role === "protector") return "Protecteur";
-  if (game.role) return game.role;
-  return game.name;
+// Extract ARIA state from connected games
+function getAriaState(games: ConnectedGame[]): AriaState | null {
+  const ariaGame = games.find((g) => g.gameId === "aria");
+  if (!ariaGame) return null;
+  return {
+    isEvil: (ariaGame.state.isEvil as boolean) ?? false,
+    isSpeaking: (ariaGame.state.isSpeaking as boolean) ?? false,
+    isDilemmaOpen: (ariaGame.state.isDilemmaOpen as boolean) ?? false,
+    currentDilemmaIndex: (ariaGame.state.currentDilemmaIndex as number) ?? 0,
+    totalDilemmas: (ariaGame.state.totalDilemmas as number) ?? 0,
+  };
+}
+
+// Filter ARIA actions based on current state
+function getFilteredAriaActions(
+  actions: GameAction[],
+  ariaState: AriaState | null
+): GameAction[] {
+  if (!ariaState) return actions;
+
+  return actions.filter((action) => {
+    if (action.id === "enable_evil") return !ariaState.isEvil;
+    if (action.id === "disable_evil") return ariaState.isEvil;
+    if (action.id === "enable_speaking") return !ariaState.isSpeaking;
+    if (action.id === "disable_speaking") return ariaState.isSpeaking;
+    if (action.id === "enable_dilemma") return !ariaState.isDilemmaOpen;
+    if (action.id === "disable_dilemma") return ariaState.isDilemmaOpen;
+    return true;
+  });
+}
+
+// Filter Sidequest actions based on workflow state
+function getFilteredSidequestActions(
+  actions: GameAction[],
+  sidequestState: Record<string, unknown> | null
+): GameAction[] {
+  if (!sidequestState) return actions;
+
+  const currentScreen = sidequestState.currentScreen as string;
+  const startScreen = sidequestState.startScreen as boolean;
+  const inProgress = sidequestState.in_progress as boolean;
+
+  return actions.filter((action) => {
+    // Reset toujours disponible
+    if (action.id === "reset") return true;
+
+    // LockScreen - écran noir
+    if (currentScreen === "lockscreen" && !startScreen) {
+      return action.id === "start_screen";
+    }
+
+    // LockScreen - formulaire
+    if (currentScreen === "lockscreen" && startScreen) {
+      return action.id === "enter_solution";
+    }
+
+    // Home - transition
+    if (currentScreen === "home") {
+      return false; // Seulement reset (déjà géré)
+    }
+
+    // Game - en cours
+    if (currentScreen === "game" && inProgress) {
+      return ["skip_phase", "add_points", "remove_points"].includes(action.id);
+    }
+
+    return false;
+  });
+}
+
+// Filter Labyrinthe actions based on game state
+function getFilteredLabyrintheActions(
+  actions: GameAction[],
+  labyrintheState: Record<string, unknown> | null
+): GameAction[] {
+  if (!labyrintheState) return actions;
+
+  const gameStarted = labyrintheState.gameStarted as boolean;
+
+  return actions.map((action) => {
+    if (action.id === "start" && gameStarted) {
+      return { ...action, disabled: true };
+    }
+    return action;
+  });
+}
+
+interface ConfirmDialogState {
+  isOpen: boolean;
+  action: GameAction | null;
+  instances: ConnectedGame[];
+  params: Record<string, unknown>;
+  variant?: "warning" | "danger";
 }
 
 function App() {
@@ -60,11 +242,90 @@ function App() {
   const [activeTab, setActiveTab] = useState<string | null>(null);
   const [statuses, setStatuses] = useState<Record<string, ActionStatus>>({});
   const [audioPlayerCount, setAudioPlayerCount] = useState(0);
+  const [events, setEvents] = useState<TimelineEvent[]>([]);
+  const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState>({
+    isOpen: false,
+    action: null,
+    instances: [],
+    params: {},
+  });
+
+  // Add event to timeline
+  const addEvent = useCallback(
+    (
+      type: TimelineEvent["type"],
+      message: string,
+      gameId?: string,
+      status?: TimelineEvent["status"]
+    ) => {
+      const event: TimelineEvent = {
+        id: `${Date.now()}-${Math.random()}`,
+        timestamp: new Date(),
+        type,
+        message,
+        gameId,
+        status,
+      };
+      setEvents((prev) => [...prev.slice(-49), event]); // Keep last 50 events
+    },
+    []
+  );
 
   useEffect(() => {
-    socket.on("connect", () => setConnected(true));
-    socket.on("disconnect", () => setConnected(false));
-    socket.on("games_updated", (data: ConnectedGame[]) => setGames(data));
+    socket.on("connect", () => {
+      setConnected(true);
+      addEvent(
+        "connection",
+        "Connexion au serveur établie",
+        undefined,
+        "success"
+      );
+    });
+
+    socket.on("disconnect", () => {
+      setConnected(false);
+      addEvent("connection", "Déconnexion du serveur", undefined, "error");
+    });
+
+    socket.on("games_updated", (data: ConnectedGame[]) => {
+      // Log new connections/disconnections
+      const prevGames = games;
+      data.forEach((game) => {
+        const prevGame = prevGames.find((g) => g.gameId === game.gameId);
+        if (!prevGame && game.status === "connected") {
+          addEvent(
+            "connection",
+            `${game.name} connecté`,
+            game.gameId,
+            "success"
+          );
+        } else if (
+          prevGame &&
+          prevGame.status === "connected" &&
+          game.status !== "connected"
+        ) {
+          addEvent(
+            "connection",
+            `${game.name} déconnecté`,
+            game.gameId,
+            "error"
+          );
+        } else if (
+          prevGame &&
+          prevGame.status !== "connected" &&
+          game.status === "connected"
+        ) {
+          addEvent(
+            "connection",
+            `${game.name} reconnecté`,
+            game.gameId,
+            "success"
+          );
+        }
+      });
+      setGames(data);
+    });
+
     socket.on("audio-players-updated", (data: { count: number }) =>
       setAudioPlayerCount(data.count)
     );
@@ -80,59 +341,167 @@ function App() {
       socket.off("games_updated");
       socket.off("audio-players-updated");
     };
-  }, []);
+  }, [addEvent, games]);
 
-  const groups = useMemo(() => groupGames(games), [games]);
+  const groups = useMemo(() => mergeWithPredefined(games), [games]);
 
   useEffect(() => {
-    if (activeTab === "voice_cloner") return;
+    // Don't auto-switch if we're on sound_control tab
+    if (activeTab === "sound_control") return;
 
+    // Auto-select first game tab if no valid game tab is active
     if (
       groups.length > 0 &&
       (!activeTab || !groups.find((g) => g.baseId === activeTab))
     ) {
       setActiveTab(groups[0].baseId);
     }
-    if (groups.length === 0 && activeTab !== "voice_cloner") {
+
+    // Clear tab if no games available and not on sound_control
+    if (groups.length === 0 && activeTab !== "sound_control") {
       setActiveTab(null);
     }
   }, [groups, activeTab]);
 
   const activeGroup = groups.find((g) => g.baseId === activeTab) ?? null;
 
-  const sendCommand = useCallback(async (gameId: string, actionId: string) => {
-    const key = `${gameId}:${actionId}`;
-    setStatuses((prev) => ({ ...prev, [key]: "loading" }));
+  const sendCommand = useCallback(
+    async (
+      gameId: string,
+      actionId: string,
+      payload: Record<string, unknown> = {}
+    ) => {
+      const key = `${gameId}:${actionId}`;
+      setStatuses((prev) => ({ ...prev, [key]: "loading" }));
 
-    try {
-      const response = await fetch(`${API_URL}/api/games/${gameId}/command`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: actionId, payload: {} }),
-      });
+      const game = games.find((g) => g.gameId === gameId);
+      const actionName =
+        game?.availableActions.find((a) => a.id === actionId)?.label ??
+        actionId;
 
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      addEvent(
+        "action",
+        `${game?.name}: ${actionName} en cours...`,
+        gameId,
+        "info"
+      );
 
-      setStatuses((prev) => ({ ...prev, [key]: "success" }));
-      setTimeout(() => {
-        setStatuses((prev) => ({ ...prev, [key]: "idle" }));
-      }, 1500);
-    } catch {
-      setStatuses((prev) => ({ ...prev, [key]: "error" }));
-      setTimeout(() => {
-        setStatuses((prev) => ({ ...prev, [key]: "idle" }));
-      }, 2500);
-    }
-  }, []);
+      try {
+        const response = await fetch(`${API_URL}/api/games/${gameId}/command`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: actionId, payload }),
+        });
+
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+        setStatuses((prev) => ({ ...prev, [key]: "success" }));
+        addEvent(
+          "action",
+          `${game?.name}: ${actionName} réussi`,
+          gameId,
+          "success"
+        );
+        setTimeout(() => {
+          setStatuses((prev) => ({ ...prev, [key]: "idle" }));
+        }, 1500);
+      } catch {
+        setStatuses((prev) => ({ ...prev, [key]: "error" }));
+        addEvent(
+          "action",
+          `${game?.name}: ${actionName} échoué`,
+          gameId,
+          "error"
+        );
+        setTimeout(() => {
+          setStatuses((prev) => ({ ...prev, [key]: "idle" }));
+        }, 2500);
+      }
+    },
+    [games, addEvent]
+  );
 
   const sendToAll = useCallback(
-    async (instances: ConnectedGame[], actionId: string) => {
+    async (
+      instances: ConnectedGame[],
+      action: GameAction,
+      payload: Record<string, unknown> = {}
+    ) => {
       await Promise.all(
-        instances.map((inst) => sendCommand(inst.gameId, actionId))
+        instances.map((inst) => sendCommand(inst.gameId, action.id, payload))
       );
     },
     [sendCommand]
   );
+
+  const handleActionClick = useCallback(
+    async (
+      instances: ConnectedGame[],
+      action: GameAction,
+      payload?: Record<string, unknown>
+    ) => {
+      // Special handling for set_code action
+      if (action.id === "set_code") {
+        const sidequestGame = games.find((g) => g.gameId === "sidequest");
+        if (sidequestGame?.state.isPasswordCorrect === true) {
+          toast.warning(
+            "Impossible d'entrer le code car l'utilisateur n'est plus sur l'écran du computer"
+          );
+          return;
+        }
+
+        setConfirmDialog({
+          isOpen: true,
+          action,
+          instances,
+          params: payload ?? {},
+          variant: "warning",
+        });
+        return;
+      }
+
+      // Special handling for reset action
+      if (action.id === "reset") {
+        setConfirmDialog({
+          isOpen: true,
+          action,
+          instances,
+          params: payload ?? {},
+          variant: "danger",
+        });
+        return;
+      }
+
+      // Normal execution
+      await sendToAll(instances, action, payload);
+    },
+    [sendToAll, games]
+  );
+
+  const handleConfirmAction = useCallback(async () => {
+    if (confirmDialog.action && confirmDialog.instances.length > 0) {
+      await sendToAll(
+        confirmDialog.instances,
+        confirmDialog.action,
+        confirmDialog.params
+      );
+    }
+    setConfirmDialog({
+      isOpen: false,
+      action: null,
+      instances: [],
+      params: {},
+    });
+  }, [confirmDialog, sendToAll]);
+
+  const handleCancelAction = useCallback(() => {
+    setConfirmDialog({
+      isOpen: false,
+      action: null,
+      instances: [],
+      params: {},
+    });
+  }, []);
 
   const getStatus = (gameId: string, actionId: string): ActionStatus => {
     return statuses[`${gameId}:${actionId}`] ?? "idle";
@@ -140,56 +509,17 @@ function App() {
 
   return (
     <div className="dashboard">
-      <header className="header">
-        <h1>Gamemaster</h1>
-        <div className={`connection-badge ${connected ? "online" : "offline"}`}>
-          <span className="connection-dot" />
-          {connected ? "Serveur connecté" : "Serveur déconnecté"}
-        </div>
-        <div
-          className={`connection-badge ${audioPlayerCount > 0 ? "online" : "offline"}`}
-        >
-          <span className="connection-dot" />
-          {audioPlayerCount} player{audioPlayerCount !== 1 ? "s" : ""} audio
-        </div>
-      </header>
+      <Navbar
+        groups={groups}
+        connected={connected}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        audioPlayerCount={audioPlayerCount}
+      />
+      <EventTimeline events={events} />
 
-      {/* Tabs */}
-      <nav className="game-tabs">
-        {groups.map((group) => (
-          <button
-            key={group.baseId}
-            className={`game-tab ${activeTab === group.baseId ? "active" : ""}`}
-            onClick={() => setActiveTab(group.baseId)}
-          >
-            <span className="tab-dot" />
-            <span className="tab-name">
-              {group.instances[0]?.name.replace(/\s*-\s.*$/, "") ??
-                group.baseId}
-            </span>
-            <span className="tab-count">
-              {group.instances.length} instance
-              {group.instances.length > 1 ? "s" : ""}
-            </span>
-          </button>
-        ))}
-
-        <button
-          className={`game-tab ${activeTab === "voice_cloner" ? "active" : ""}`}
-          onClick={() => setActiveTab("voice_cloner")}
-        >
-          <span
-            className="tab-dot"
-            style={{ background: "#00ffff", boxShadow: "0 0 6px cyan" }}
-          />
-          <span className="tab-name">Sound Control</span>
-        </button>
-      </nav>
-
-      <main
-        className={`controls ${activeTab === "voice_cloner" ? "controls-full" : ""}`}
-      >
-        {activeTab === "voice_cloner" ? (
+      <main className="controls">
+        {activeTab === "sound_control" ? (
           <div className="sound-control-layout">
             <div className="sound-control-col">
               <div className="col-header">IA</div>
@@ -200,93 +530,270 @@ function App() {
               <SoundPad />
             </div>
           </div>
-        ) : games.length === 0 ? (
-          <div className="empty-state">
-            <p className="empty-title">Aucun mini-jeu connecté</p>
-            <p className="empty-hint">En attente des connexions...</p>
-          </div>
         ) : activeGroup ? (
           <div className="game-panel">
-            <div className="instances-bar">
-              {activeGroup.instances.map((inst) => (
-                <div key={inst.gameId} className="instance-badge">
-                  <span className="instance-dot connected" />
-                  <span className="instance-role">{getRoleName(inst)}</span>
-                  {inst.state.role ? (
-                    <span className="instance-state">
-                      {inst.state.gameStarted ? "En jeu" : "En attente"}
-                    </span>
-                  ) : null}
-                </div>
-              ))}
+            {/* Instance cards */}
+            <div className="instances-bar-compact">
+              {activeGroup.expectedInstances.map((expected) => {
+                const inst = activeGroup.instances.find(
+                  (i) => i.gameId === expected.gameId
+                );
+                const ariaState =
+                  expected.gameId === "aria"
+                    ? (getAriaState(games) ?? undefined)
+                    : undefined;
+                return (
+                  <InstanceCard
+                    key={expected.gameId}
+                    instance={inst}
+                    expected={expected}
+                    ariaState={ariaState}
+                  />
+                );
+              })}
             </div>
 
-            {activeGroup.instances.length > 0 && (
-              <div className="button-grid">
-                {activeGroup.instances[0].availableActions.map((action) => {
-                  const allStatuses = activeGroup.instances.map((inst) =>
-                    getStatus(inst.gameId, action.id)
+            {/* Actions */}
+            {activeGroup.instances.length > 0 &&
+              (() => {
+                const allSameActions =
+                  activeGroup.instances.length <= 1 ||
+                  activeGroup.instances.every(
+                    (inst) =>
+                      JSON.stringify(inst.availableActions.map((a) => a.id)) ===
+                      JSON.stringify(
+                        activeGroup.instances[0].availableActions.map(
+                          (a) => a.id
+                        )
+                      )
                   );
-                  const isLoading = allStatuses.some((s) => s === "loading");
-                  const isSuccess = allStatuses.every((s) => s === "success");
-                  const isError = allStatuses.some((s) => s === "error");
 
-                  let btnStatus: ActionStatus = "idle";
-                  if (isLoading) btnStatus = "loading";
-                  else if (isSuccess) btnStatus = "success";
-                  else if (isError) btnStatus = "error";
+                const ariaState =
+                  activeGroup.baseId === "aria" ? getAriaState(games) : null;
+                const actionsToRender =
+                  activeGroup.baseId === "aria"
+                    ? getFilteredAriaActions(
+                        activeGroup.instances[0].availableActions,
+                        ariaState
+                      )
+                    : activeGroup.baseId === "sidequest"
+                      ? getFilteredSidequestActions(
+                          activeGroup.instances[0].availableActions,
+                          activeGroup.instances[0].state
+                        )
+                      : activeGroup.baseId === "labyrinthe"
+                        ? getFilteredLabyrintheActions(
+                            activeGroup.instances[0].availableActions,
+                            activeGroup.instances[0].state
+                          )
+                        : activeGroup.instances[0].availableActions;
+
+                if (allSameActions) {
+                  const regularActions = actionsToRender.filter(
+                    (a) => a.id !== "reset"
+                  );
+                  const resetActions = actionsToRender.filter(
+                    (a) => a.id === "reset"
+                  );
 
                   return (
-                    <button
-                      key={action.id}
-                      className={`control-btn ${getVariant(action.id)} ${btnStatus}`}
-                      onClick={() =>
-                        sendToAll(activeGroup.instances, action.id)
-                      }
-                      disabled={isLoading}
-                    >
-                      <span className="btn-label">
-                        {isLoading ? "Envoi..." : action.label}
-                      </span>
-                      <span className="btn-description">
-                        {activeGroup.instances.length > 1
-                          ? "Toutes les instances"
-                          : ""}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
+                    <>
+                      <div className="action-grid">
+                        {regularActions.map((action) => {
+                          const allStatuses = activeGroup.instances.map(
+                            (inst) => getStatus(inst.gameId, action.id)
+                          );
+                          const isLoading = allStatuses.some(
+                            (s) => s === "loading"
+                          );
+                          const isSuccess = allStatuses.every(
+                            (s) => s === "success"
+                          );
+                          const isError = allStatuses.some(
+                            (s) => s === "error"
+                          );
 
-            {activeGroup.instances.length > 1 && (
-              <div className="per-instance">
-                <p className="section-label"># Par instance</p>
-                {activeGroup.instances.map((inst) => (
-                  <div key={inst.gameId} className="instance-controls">
-                    <span className="instance-label">{getRoleName(inst)}</span>
-                    <div className="instance-actions">
-                      {inst.availableActions.map((action) => {
-                        const status = getStatus(inst.gameId, action.id);
-                        return (
-                          <button
-                            key={action.id}
-                            className={`instance-btn ${getVariant(action.id)} ${status}`}
-                            onClick={() => sendCommand(inst.gameId, action.id)}
-                            disabled={status === "loading"}
-                          >
-                            {status === "loading" ? "..." : action.label}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+                          let feedbackStatus: ActionStatus = "idle";
+                          if (isLoading) feedbackStatus = "loading";
+                          else if (isSuccess) feedbackStatus = "success";
+                          else if (isError) feedbackStatus = "error";
+
+                          return (
+                            <ActionButton
+                              key={action.id}
+                              action={action}
+                              variant={getVariant(action.id)}
+                              status={feedbackStatus}
+                              onClick={(payload) =>
+                                handleActionClick(
+                                  activeGroup.instances,
+                                  action,
+                                  payload
+                                )
+                              }
+                              disabled={isLoading}
+                            />
+                          );
+                        })}
+                      </div>
+
+                      {resetActions.length > 0 && (
+                        <div className="reset-actions-bar">
+                          {resetActions.map((action) => {
+                            const allStatuses = activeGroup.instances.map(
+                              (inst) => getStatus(inst.gameId, action.id)
+                            );
+                            const isLoading = allStatuses.some(
+                              (s) => s === "loading"
+                            );
+                            const isSuccess = allStatuses.every(
+                              (s) => s === "success"
+                            );
+                            const isError = allStatuses.some(
+                              (s) => s === "error"
+                            );
+
+                            let feedbackStatus: ActionStatus = "idle";
+                            if (isLoading) feedbackStatus = "loading";
+                            else if (isSuccess) feedbackStatus = "success";
+                            else if (isError) feedbackStatus = "error";
+
+                            return (
+                              <ActionButton
+                                key={action.id}
+                                action={{
+                                  ...action,
+                                  label: "Réinitialiser",
+                                }}
+                                variant={getVariant(action.id)}
+                                status={feedbackStatus}
+                                onClick={(payload) =>
+                                  handleActionClick(
+                                    activeGroup.instances,
+                                    action,
+                                    payload
+                                  )
+                                }
+                                disabled={isLoading}
+                              />
+                            );
+                          })}
+                        </div>
+                      )}
+                    </>
+                  );
+                }
+
+                const allResetActions: Array<{
+                  inst: ConnectedGame;
+                  action: GameAction;
+                }> = [];
+
+                const perInstanceElements = activeGroup.instances.map(
+                  (inst) => {
+                    const regularActions = inst.availableActions.filter(
+                      (a) => a.id !== "reset"
+                    );
+                    const resetActions = inst.availableActions.filter(
+                      (a) => a.id === "reset"
+                    );
+
+                    // Collect reset actions for the fixed bar
+                    resetActions.forEach((action) => {
+                      allResetActions.push({ inst, action });
+                    });
+
+                    return (
+                      <div key={inst.gameId} className="per-instance">
+                        <p className="section-label">{inst.name}</p>
+                        <div className="action-grid">
+                          {regularActions.map((action) => {
+                            const status = getStatus(inst.gameId, action.id);
+                            return (
+                              <ActionButton
+                                key={action.id}
+                                action={action}
+                                variant={getVariant(action.id)}
+                                status={status}
+                                onClick={(payload) =>
+                                  handleActionClick([inst], action, payload)
+                                }
+                                disabled={status === "loading"}
+                              />
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  }
+                );
+
+                return (
+                  <>
+                    {perInstanceElements}
+
+                    {allResetActions.length > 0 && (
+                      <div className="reset-actions-bar">
+                        {allResetActions.map(({ inst, action }) => {
+                          const status = getStatus(inst.gameId, action.id);
+                          return (
+                            <ActionButton
+                              key={`${inst.gameId}-${action.id}`}
+                              action={{
+                                ...action,
+                                label: `Réinitialiser - ${inst.name}`,
+                              }}
+                              variant={getVariant(action.id)}
+                              status={status}
+                              onClick={(payload) =>
+                                handleActionClick([inst], action, payload)
+                              }
+                              disabled={status === "loading"}
+                            />
+                          );
+                        })}
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
           </div>
         ) : null}
       </main>
+
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        title={
+          confirmDialog.variant === "danger" ? "Réinitialiser ?" : "Attention"
+        }
+        message={
+          confirmDialog.variant === "danger"
+            ? "Êtes-vous sûr ?"
+            : "Cette action va entrer la solution directement dans le jeu. Êtes-vous sûr de vouloir continuer ?"
+        }
+        confirmLabel={
+          confirmDialog.variant === "danger" ? "Réinitialiser" : "Confirmer"
+        }
+        cancelLabel="Annuler"
+        variant={confirmDialog.variant}
+        onConfirm={handleConfirmAction}
+        onCancel={handleCancelAction}
+      />
+
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          style: {
+            background: "rgba(15, 23, 42, 0.95)",
+            border: "1px solid rgba(245, 158, 11, 0.5)",
+            color: "#f59e0b",
+            fontFamily: "'Courier New', monospace",
+            textTransform: "uppercase",
+            letterSpacing: "1px",
+            fontSize: "12px",
+          },
+        }}
+      />
     </div>
   );
 }

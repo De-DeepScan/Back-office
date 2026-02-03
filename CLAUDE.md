@@ -34,6 +34,10 @@ escape-backoffice/
 │   └── socket/
 │       └── gamemaster.ts     # Logique temps réel
 ├── client/                   # React dashboard
+├── external/                 # Projets PC filles (non commité)
+│   ├── [mini-jeu]/           # Clone git d'un mini-jeu
+│   ├── docs/                 # Documentation des modifications
+│   └── gamemaster-client.ts  # SDK de référence
 ├── uploads/                  # Photos (si besoin local)
 └── data/                     # escape.db
 ```
@@ -202,3 +206,29 @@ cd client && pnpm dev # Lance le front React
 - Corriger les erreurs immédiatement
 - Proposer des alternatives si approche sous-optimale
 - Pas de formules creuses ("Super !", "Excellent !")
+
+## Projets Externes (external/)
+
+Le dossier `external/` contient les clones git des projets des PC filles (mini-jeux) pour référence et documentation. **Ce dossier n'est jamais commité.**
+
+### Structure
+
+- `external/[nom-projet]/` - Clone git d'un mini-jeu
+- `external/docs/` - Documentation des modifications à demander aux équipes
+- `external/gamemaster-client.ts` - SDK de référence pour les mini-jeux
+
+### Utilisation
+
+**Ajouter un mini-jeu :**
+
+```bash
+cd external
+git clone <url-du-repo> [nom-projet]
+```
+
+**Ne jamais modifier ces fichiers directement.** Pour demander une modification :
+
+1. Créer un document dans `external/docs/` expliquant le problème et la solution
+2. Transmettre ce document à l'équipe responsable du mini-jeu concerné
+
+Format du document : `external/docs/[PROJET]-[description].md`
