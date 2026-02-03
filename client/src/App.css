@@ -282,7 +282,7 @@
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  padding: 0 var(--space-2xl) var(--space-2xl);
+  padding: var(--space-4xl) var(--space-2xl) var(--space-2xl);
 }
 
 .game-panel {
@@ -293,9 +293,9 @@
 /* === INSTANCE CARDS (COMPACT) === */
 .instances-bar-compact {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: var(--space-lg);
-  margin-bottom: var(--space-2xl);
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--space-xl);
+  margin-bottom: var(--space-3xl);
 }
 
 .instance-card-compact {
@@ -303,10 +303,10 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-xs);
-  padding: var(--space-md) var(--space-lg);
-  padding-top: var(--space-xl);
-  min-height: 100px;
+  gap: var(--space-md);
+  padding: var(--space-xl) var(--space-xl);
+  padding-top: var(--space-2xl);
+  min-height: 140px;
   background: var(--color-bg-surface);
   border: 2px solid rgba(0, 255, 255, 0.2);
   border-left: 4px solid var(--color-primary);
@@ -423,7 +423,7 @@
 .action-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: var(--space-lg);
+  gap: var(--space-2xl);
   width: 100%;
 }
 
@@ -436,9 +436,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: var(--space-sm);
-  padding: var(--space-lg);
-  min-height: 80px;
+  gap: var(--space-md);
+  padding: var(--space-xl) var(--space-2xl);
+  min-height: 120px;
   width: 100%;
 
   font-family: var(--font-primary);
@@ -479,7 +479,7 @@
 
 .action-label {
   flex: 1;
-  font-size: var(--text-base);
+  font-size: var(--text-md);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 1.5px;
@@ -624,9 +624,9 @@
 
 /* === PER-INSTANCE SECTION === */
 .per-instance {
-  margin-top: var(--space-2xl);
+  margin-top: var(--space-3xl);
   border-top: 1px solid rgba(0, 255, 255, 0.1);
-  padding-top: var(--space-xl);
+  padding-top: var(--space-2xl);
 }
 
 .section-label {
@@ -958,22 +958,23 @@
   }
 
   .controls {
-    padding: 0 var(--space-md) var(--space-md);
+    padding: var(--space-xl) var(--space-md) var(--space-md);
   }
 
   .instances-bar-compact {
     grid-template-columns: 1fr;
+    gap: var(--space-lg);
   }
 }
 
 @media (max-width: 600px) {
   .action-grid {
     grid-template-columns: 1fr;
-    gap: var(--space-md);
+    gap: var(--space-lg);
   }
 
   .action-button {
-    min-height: 70px;
+    min-height: 90px;
   }
 
   .navbar-title {
