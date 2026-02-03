@@ -165,6 +165,57 @@ export function setupGamemaster(io: Server): void {
           `[event] ${game?.name ?? socket.id} → ${data.name}`,
           data.data ?? ""
         );
+
+        // Auto-trigger Labyrinth when Sidequest password is correct
+        if (data.name === "password_correct" && key === "sidequest") {
+          console.log(
+            "[automation] Password correct detected, launching Labyrinth..."
+          );
+
+          // Check if Labyrinth instances are already started
+          const labyrintheExplorer = connectedGames.get("labyrinthe:explorer");
+          const labyrintheProtector = connectedGames.get(
+            "labyrinthe:protector"
+          );
+
+          const explorerStarted = labyrintheExplorer?.state
+            .gameStarted as boolean;
+          const protectorStarted = labyrintheProtector?.state
+            .gameStarted as boolean;
+
+          if (explorerStarted && protectorStarted) {
+            console.log("[automation] Labyrinth already started, skipping");
+            return;
+          }
+
+          // Send start command to both Labyrinth instances
+          const explorerSent = sendCommand(io, "labyrinthe:explorer", "start");
+          const protectorSent = sendCommand(
+            io,
+            "labyrinthe:protector",
+            "start"
+          );
+
+          if (explorerSent) {
+            console.log(
+              "[automation] Sent start command to Labyrinth Explorer"
+            );
+          } else {
+            console.warn(
+              "[automation] Labyrinth Explorer not connected or not ready"
+            );
+          }
+
+          if (protectorSent) {
+            console.log(
+              "[automation] Sent start command to Labyrinth Protector"
+            );
+          } else {
+            console.warn(
+              "[automation] Labyrinth Protector not connected or not ready"
+            );
+          }
+        }
       }
     );
 
