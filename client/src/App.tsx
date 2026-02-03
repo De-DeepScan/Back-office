@@ -1,6 +1,11 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { io } from "socket.io-client";
 import { toast, Toaster } from "sonner";
+import { Navbar } from "./components/Navbar";
+import { EventTimeline } from "./components/EventTimeline";
+import type { TimelineEvent } from "./components/EventTimeline";
+import { InstanceCard } from "./components/InstanceCard";
+import { ActionButton } from "./components/ActionButton";
 import { ConfirmDialog } from "./components/ConfirmDialog";
 import "./App.css";
 
@@ -86,7 +91,6 @@ function groupConnectedGames(
 ): Map<string, ConnectedGame[]> {
   const groups = new Map<string, ConnectedGame[]>();
   for (const game of games) {
-    // gameId is "labyrinthe:explorer" or "labyrinthe" — group by base
     const rawBase = game.gameId.split(":")[0];
     const baseId = GAME_GROUP_PREFIXES[rawBase] ?? rawBase;
     const list = groups.get(baseId) ?? [];
@@ -102,7 +106,6 @@ function mergeWithPredefined(games: ConnectedGame[]): GameGroup[] {
   return PREDEFINED_GAMES.map((def) => {
     const instances = connectedMap.get(def.baseId) ?? [];
 
-    // Calculate group status based on instance statuses
     let groupStatus: GameStatus = "not_started";
     if (instances.some((i) => i.status === "connected")) {
       groupStatus = "connected";
@@ -120,23 +123,31 @@ function mergeWithPredefined(games: ConnectedGame[]): GameGroup[] {
   });
 }
 
-function getVariant(actionId: string): string {
-  if (actionId === "reset") return "danger";
+function getVariant(
+  actionId: string
+): "primary" | "success" | "danger" | "warning" {
+  if (
+    actionId === "reset" ||
+    actionId === "enable_evil" ||
+    actionId === "remove_points" ||
+    actionId === "disable_speaking"
+  )
+    return "danger";
   if (
     actionId === "start" ||
     actionId === "start_screen" ||
-    actionId === "add_points"
+    actionId === "add_points" ||
+    actionId === "disable_evil" ||
+    actionId === "enable_speaking"
   )
     return "success";
-  if (actionId === "disable_ai" || actionId === "skip_phase") return "warning";
-  if (actionId === "remove_points") return "danger";
-  // ARIA-specific variants
-  if (actionId === "enable_evil" || actionId === "enable_dilemma")
-    return "danger";
-  if (actionId === "disable_evil" || actionId === "disable_dilemma")
-    return "success";
-  if (actionId === "enable_speaking") return "success";
-  if (actionId === "disable_speaking") return "warning";
+  if (
+    actionId === "disable_ai" ||
+    actionId === "skip_phase" ||
+    actionId === "enable_dilemma" ||
+    actionId === "disable_dilemma"
+  )
+    return "warning";
   return "primary";
 }
 
@@ -153,7 +164,7 @@ function getAriaState(games: ConnectedGame[]): AriaState | null {
   };
 }
 
-// Filter ARIA actions based on current state (show only relevant toggle)
+// Filter ARIA actions based on current state
 function getFilteredAriaActions(
   actions: GameAction[],
   ariaState: AriaState | null
@@ -161,20 +172,17 @@ function getFilteredAriaActions(
   if (!ariaState) return actions;
 
   return actions.filter((action) => {
-    // Show enable_evil only when NOT evil, disable_evil only when evil
     if (action.id === "enable_evil") return !ariaState.isEvil;
     if (action.id === "disable_evil") return ariaState.isEvil;
-    // Show enable_speaking only when NOT speaking, disable_speaking when speaking
     if (action.id === "enable_speaking") return !ariaState.isSpeaking;
     if (action.id === "disable_speaking") return ariaState.isSpeaking;
-    // Show enable_dilemma only when dilemma NOT open, disable_dilemma when open
     if (action.id === "enable_dilemma") return !ariaState.isDilemmaOpen;
     if (action.id === "disable_dilemma") return ariaState.isDilemmaOpen;
-    return true; // Keep other actions like reset
+    return true;
   });
 }
 
-// ARIA Preview component - SVG conforme au Design System
+// ARIA Preview component
 function AriaPreview({ state }: { state: AriaState }) {
   return (
     <div className={`aria-preview ${state.isEvil ? "evil" : "good"}`}>
@@ -182,10 +190,8 @@ function AriaPreview({ state }: { state: AriaState }) {
         <span className="preview-title">ARIA Status</span>
       </div>
       <div className="aria-preview-content">
-        {/* Cat Avatar - Design System compliant */}
         <div className={`aria-avatar ${state.isEvil ? "evil" : ""}`}>
           <svg viewBox="0 0 200 180" className="aria-cat-mini">
-            {/* Tête - forme différente selon le mode */}
             <path
               d={
                 state.isEvil
@@ -199,8 +205,6 @@ function AriaPreview({ state }: { state: AriaState }) {
               strokeLinejoin="round"
               className="cat-line"
             />
-
-            {/* Œil unique central */}
             <g className="eye-group">
               <path
                 d={
@@ -214,7 +218,6 @@ function AriaPreview({ state }: { state: AriaState }) {
                 strokeLinecap="round"
                 strokeLinejoin="round"
               />
-              {/* Pupille verticale animée */}
               <line
                 x1="100"
                 y1={state.isEvil ? 103 : 95}
@@ -226,8 +229,6 @@ function AriaPreview({ state }: { state: AriaState }) {
                 className="eye-pupil"
               />
             </g>
-
-            {/* Moustaches gauche */}
             <line
               x1={state.isEvil ? -10 : 0}
               y1={state.isEvil ? 95 : 100}
@@ -258,8 +259,6 @@ function AriaPreview({ state }: { state: AriaState }) {
               strokeLinecap="round"
               className="whisker"
             />
-
-            {/* Moustaches droite */}
             <line
               x1="155"
               y1="115"
@@ -299,8 +298,6 @@ function AriaPreview({ state }: { state: AriaState }) {
             </div>
           )}
         </div>
-
-        {/* Status Tags */}
         <div className="aria-status-tags">
           <span className={`aria-tag ${state.isEvil ? "active evil" : ""}`}>
             {state.isEvil ? "EVIL" : "GOOD"}
@@ -319,51 +316,6 @@ function AriaPreview({ state }: { state: AriaState }) {
   );
 }
 
-function getRoleName(game: ConnectedGame): string {
-  if (game.role === "explorer") return "Explorateur";
-  if (game.role === "protector") return "Protecteur";
-  if (game.role) return game.role;
-  return game.name;
-}
-
-function getSubGameClass(gameId: string): string {
-  const base = gameId.split(":")[0];
-  if (base === "sidequest") return "sidequest";
-  return "";
-}
-
-function formatState(
-  state: Record<string, unknown>
-): { label: string; value: string }[] {
-  const entries: { label: string; value: string }[] = [];
-  for (const [key, val] of Object.entries(state)) {
-    if (key === "startScreen")
-      entries.push({ label: "Écran", value: val ? "Actif" : "Inactif" });
-    else if (key === "isPasswordCorrect")
-      entries.push({ label: "Code", value: val ? "✓ Correct" : "En attente" });
-    else if (key === "passwordEntered")
-      entries.push({ label: "Saisie", value: val ? String(val) : "-" });
-    else if (key === "score")
-      entries.push({ label: "Score", value: String(val) });
-    else if (key === "phase")
-      entries.push({ label: "Phase", value: `${val}/6` });
-    else if (key === "in_progress")
-      entries.push({ label: "État", value: val ? "En cours" : "En attente" });
-    else if (key === "currentScreen")
-      entries.push({ label: "Écran", value: String(val) });
-    else if (key === "aiEnabled")
-      entries.push({ label: "IA", value: val ? "Activée" : "Désactivée" });
-    else if (key === "gameStarted")
-      continue; // handled elsewhere
-    else if (key === "role")
-      continue; // handled by card styling
-    else if (key === "isGameOver")
-      continue; // handled elsewhere
-    else if (key === "isVictory") continue; // handled elsewhere
-  }
-  return entries;
-}
-
 interface ConfirmDialogState {
   isOpen: boolean;
   action: GameAction | null;
@@ -376,6 +328,7 @@ function App() {
   const [connected, setConnected] = useState(false);
   const [activeTab, setActiveTab] = useState<string | null>(null);
   const [statuses, setStatuses] = useState<Record<string, ActionStatus>>({});
+  const [events, setEvents] = useState<TimelineEvent[]>([]);
   const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState>({
     isOpen: false,
     action: null,
@@ -383,10 +336,81 @@ function App() {
     params: {},
   });
 
+  // Add event to timeline
+  const addEvent = useCallback(
+    (
+      type: TimelineEvent["type"],
+      message: string,
+      gameId?: string,
+      status?: TimelineEvent["status"]
+    ) => {
+      const event: TimelineEvent = {
+        id: `${Date.now()}-${Math.random()}`,
+        timestamp: new Date(),
+        type,
+        message,
+        gameId,
+        status,
+      };
+      setEvents((prev) => [...prev.slice(-49), event]); // Keep last 50 events
+    },
+    []
+  );
+
   useEffect(() => {
-    socket.on("connect", () => setConnected(true));
-    socket.on("disconnect", () => setConnected(false));
-    socket.on("games_updated", (data: ConnectedGame[]) => setGames(data));
+    socket.on("connect", () => {
+      setConnected(true);
+      addEvent(
+        "connection",
+        "Connexion au serveur établie",
+        undefined,
+        "success"
+      );
+    });
+
+    socket.on("disconnect", () => {
+      setConnected(false);
+      addEvent("connection", "Déconnexion du serveur", undefined, "error");
+    });
+
+    socket.on("games_updated", (data: ConnectedGame[]) => {
+      // Log new connections/disconnections
+      const prevGames = games;
+      data.forEach((game) => {
+        const prevGame = prevGames.find((g) => g.gameId === game.gameId);
+        if (!prevGame && game.status === "connected") {
+          addEvent(
+            "connection",
+            `${game.name} connecté`,
+            game.gameId,
+            "success"
+          );
+        } else if (
+          prevGame &&
+          prevGame.status === "connected" &&
+          game.status !== "connected"
+        ) {
+          addEvent(
+            "connection",
+            `${game.name} déconnecté`,
+            game.gameId,
+            "error"
+          );
+        } else if (
+          prevGame &&
+          prevGame.status !== "connected" &&
+          game.status === "connected"
+        ) {
+          addEvent(
+            "connection",
+            `${game.name} reconnecté`,
+            game.gameId,
+            "success"
+          );
+        }
+      });
+      setGames(data);
+    });
 
     fetch(`${API_URL}/api/games`)
       .then((r) => r.json())
@@ -398,11 +422,10 @@ function App() {
       socket.off("disconnect");
       socket.off("games_updated");
     };
-  }, []);
+  }, [addEvent, games]);
 
   const groups = useMemo(() => mergeWithPredefined(games), [games]);
 
-  // Auto-select first tab (always have predefined games)
   useEffect(() => {
     if (groups.length > 0 && !activeTab) {
       setActiveTab(groups[0].baseId);
@@ -420,6 +443,18 @@ function App() {
       const key = `${gameId}:${actionId}`;
       setStatuses((prev) => ({ ...prev, [key]: "loading" }));
 
+      const game = games.find((g) => g.gameId === gameId);
+      const actionName =
+        game?.availableActions.find((a) => a.id === actionId)?.label ??
+        actionId;
+
+      addEvent(
+        "action",
+        `${game?.name}: ${actionName} en cours...`,
+        gameId,
+        "info"
+      );
+
       try {
         const response = await fetch(`${API_URL}/api/games/${gameId}/command`, {
           method: "POST",
@@ -430,30 +465,29 @@ function App() {
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
         setStatuses((prev) => ({ ...prev, [key]: "success" }));
+        addEvent(
+          "action",
+          `${game?.name}: ${actionName} réussi`,
+          gameId,
+          "success"
+        );
         setTimeout(() => {
           setStatuses((prev) => ({ ...prev, [key]: "idle" }));
         }, 1500);
       } catch {
         setStatuses((prev) => ({ ...prev, [key]: "error" }));
+        addEvent(
+          "action",
+          `${game?.name}: ${actionName} échoué`,
+          gameId,
+          "error"
+        );
         setTimeout(() => {
           setStatuses((prev) => ({ ...prev, [key]: "idle" }));
         }, 2500);
       }
     },
-    []
-  );
-
-  const collectParams = useCallback(
-    (params: string[]): Record<string, unknown> | null => {
-      const payload: Record<string, unknown> = {};
-      for (const param of params) {
-        const value = window.prompt(`Valeur pour "${param}" :`);
-        if (value === null) return null; // cancelled
-        payload[param] = value;
-      }
-      return payload;
-    },
-    []
+    [games, addEvent]
   );
 
   const sendToAll = useCallback(
@@ -470,18 +504,13 @@ function App() {
   );
 
   const handleActionClick = useCallback(
-    async (instances: ConnectedGame[], action: GameAction) => {
-      // Collect params first if needed
-      let payload: Record<string, unknown> = {};
-      if (action.params && action.params.length > 0) {
-        const collected = collectParams(action.params);
-        if (!collected) return; // cancelled
-        payload = collected;
-      }
-
+    async (
+      instances: ConnectedGame[],
+      action: GameAction,
+      payload?: Record<string, unknown>
+    ) => {
       // Special handling for set_code action
       if (action.id === "set_code") {
-        // Check if user is still on computer screen
         const sidequestGame = games.find((g) => g.gameId === "sidequest");
         if (sidequestGame?.state.isPasswordCorrect === true) {
           toast.warning(
@@ -490,12 +519,11 @@ function App() {
           return;
         }
 
-        // Show confirmation dialog
         setConfirmDialog({
           isOpen: true,
           action,
           instances,
-          params: payload,
+          params: payload ?? {},
         });
         return;
       }
@@ -503,7 +531,7 @@ function App() {
       // Normal execution
       await sendToAll(instances, action, payload);
     },
-    [collectParams, sendToAll, games]
+    [sendToAll, games]
   );
 
   const handleConfirmAction = useCallback(async () => {
@@ -537,161 +565,41 @@ function App() {
 
   return (
     <div className="dashboard">
-      <header className="header">
-        <h1>Gamemaster</h1>
-        <div className={`connection-badge ${connected ? "online" : "offline"}`}>
-          <span className="connection-dot" />
-          {connected ? "Serveur connecté" : "Serveur déconnecté"}
-        </div>
-      </header>
-
-      {/* Tabs - Always show all predefined games */}
-      <nav className="game-tabs">
-        {groups.map((group) => {
-          const tabStatusClass =
-            group.groupStatus === "connected"
-              ? ""
-              : group.groupStatus === "reconnecting"
-                ? "reconnecting"
-                : "disconnected";
-          const connectedCount = group.instances.filter(
-            (i) => i.status === "connected"
-          ).length;
-
-          return (
-            <button
-              key={group.baseId}
-              className={`game-tab ${activeTab === group.baseId ? "active" : ""} ${tabStatusClass}`}
-              onClick={() => setActiveTab(group.baseId)}
-            >
-              <span className={`tab-dot ${group.groupStatus}`} />
-              <span className="tab-name">{group.displayName}</span>
-              <span className="tab-count">
-                {connectedCount}/{group.expectedInstances.length}
-              </span>
-            </button>
-          );
-        })}
-      </nav>
+      <Navbar
+        groups={groups}
+        connected={connected}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+      />
+      <EventTimeline events={events} />
 
       <main className="controls">
         {activeGroup ? (
           <div className="game-panel">
-            {/* Instances status - show all expected instances */}
-            <div className="instances-bar">
+            {/* Instance cards */}
+            <div className="instances-bar-compact">
               {activeGroup.expectedInstances.map((expected) => {
                 const inst = activeGroup.instances.find(
                   (i) => i.gameId === expected.gameId
                 );
-                const status = inst?.status ?? "not_started";
-
-                // Status badge config
-                const statusConfig = {
-                  connected: {
-                    label: "Connecté",
-                    className: "connected",
-                  },
-                  reconnecting: {
-                    label: "Reconnexion...",
-                    className: "reconnecting",
-                  },
-                  not_started: {
-                    label: "Non démarré",
-                    className: "not-started",
-                  },
-                };
-
-                const { label: statusLabel, className: statusClass } =
-                  statusConfig[status];
-
-                // For connected instances, show full details
-                if (status === "connected" && inst) {
-                  const stateEntries = formatState(inst.state);
-                  const resetStatus = getStatus(inst.gameId, "reset");
-                  const hasReset = inst.availableActions.some(
-                    (a) => a.id === "reset"
-                  );
-                  return (
-                    <div
-                      key={expected.gameId}
-                      className={`instance-card ${expected.role ?? getSubGameClass(expected.gameId)}`}
-                    >
-                      <div className={`instance-status-badge ${statusClass}`}>
-                        <span className="status-dot" />
-                        {statusLabel}
-                      </div>
-                      <span className="instance-role">
-                        {expected.role ? getRoleName(inst) : inst.name}
-                      </span>
-                      <span className="instance-state">
-                        {inst.state.gameStarted || inst.state.in_progress
-                          ? "En jeu"
-                          : "En attente"}
-                      </span>
-                      {stateEntries.length > 0 && (
-                        <div className="instance-state-details">
-                          {stateEntries.map((entry) => (
-                            <span key={entry.label} className="state-tag">
-                              <span className="state-tag-label">
-                                {entry.label}
-                              </span>
-                              <span className="state-tag-value">
-                                {entry.value}
-                              </span>
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                      {hasReset && (
-                        <button
-                          className={`instance-reset-btn ${resetStatus}`}
-                          onClick={() => sendCommand(inst.gameId, "reset")}
-                          disabled={resetStatus === "loading"}
-                        >
-                          {resetStatus === "loading"
-                            ? "..."
-                            : resetStatus === "success"
-                              ? "✓"
-                              : resetStatus === "error"
-                                ? "✕"
-                                : "Reset"}
-                        </button>
-                      )}
-                    </div>
-                  );
-                }
-
-                // Reconnecting or not started
                 return (
-                  <div
+                  <InstanceCard
                     key={expected.gameId}
-                    className={`instance-card ${expected.role ?? getSubGameClass(expected.gameId)} ${statusClass}`}
-                  >
-                    <div className={`instance-status-badge ${statusClass}`}>
-                      <span className="status-dot" />
-                      {statusLabel}
-                    </div>
-                    <span className="instance-role">
-                      {inst?.name ?? expected.name}
-                    </span>
-                    <span className="instance-state">
-                      {status === "reconnecting"
-                        ? "Tentative de reconnexion..."
-                        : "En attente de lancement"}
-                    </span>
-                  </div>
+                    instance={inst}
+                    expected={expected}
+                  />
                 );
               })}
             </div>
 
-            {/* ARIA Preview - show when ARIA tab is active and connected */}
+            {/* ARIA Preview */}
             {activeGroup.baseId === "aria" &&
               (() => {
                 const ariaState = getAriaState(games);
                 return ariaState ? <AriaPreview state={ariaState} /> : null;
               })()}
 
-            {/* Actions — per-instance sections when instances have different actions */}
+            {/* Actions */}
             {activeGroup.instances.length > 0 &&
               (() => {
                 const allSameActions =
@@ -706,7 +614,6 @@ function App() {
                       )
                   );
 
-                // Get filtered actions for ARIA (toggle based on state)
                 const ariaState =
                   activeGroup.baseId === "aria" ? getAriaState(games) : null;
                 const actionsToRender =
@@ -719,7 +626,7 @@ function App() {
 
                 if (allSameActions) {
                   return (
-                    <div className="button-grid">
+                    <div className="action-grid">
                       {actionsToRender.map((action) => {
                         const allStatuses = activeGroup.instances.map((inst) =>
                           getStatus(inst.gameId, action.id)
@@ -738,27 +645,20 @@ function App() {
                         else if (isError) feedbackStatus = "error";
 
                         return (
-                          <button
+                          <ActionButton
                             key={action.id}
-                            className={`control-btn ${getVariant(action.id)}`}
-                            onClick={() =>
-                              handleActionClick(activeGroup.instances, action)
+                            action={action}
+                            variant={getVariant(action.id)}
+                            status={feedbackStatus}
+                            onClick={(payload) =>
+                              handleActionClick(
+                                activeGroup.instances,
+                                action,
+                                payload
+                              )
                             }
                             disabled={isLoading}
-                          >
-                            <span className="btn-label">{action.label}</span>
-                            {feedbackStatus !== "idle" && (
-                              <span
-                                className={`btn-feedback ${feedbackStatus}`}
-                              >
-                                {feedbackStatus === "loading"
-                                  ? "..."
-                                  : feedbackStatus === "success"
-                                    ? "✓"
-                                    : "✕"}
-                              </span>
-                            )}
-                          </button>
+                          />
                         );
                       })}
                     </div>
@@ -768,27 +668,20 @@ function App() {
                 return activeGroup.instances.map((inst) => (
                   <div key={inst.gameId} className="per-instance">
                     <p className="section-label">{inst.name}</p>
-                    <div className="button-grid">
+                    <div className="action-grid">
                       {inst.availableActions.map((action) => {
                         const status = getStatus(inst.gameId, action.id);
                         return (
-                          <button
+                          <ActionButton
                             key={action.id}
-                            className={`control-btn ${getVariant(action.id)}`}
-                            onClick={() => handleActionClick([inst], action)}
+                            action={action}
+                            variant={getVariant(action.id)}
+                            status={status}
+                            onClick={(payload) =>
+                              handleActionClick([inst], action, payload)
+                            }
                             disabled={status === "loading"}
-                          >
-                            <span className="btn-label">{action.label}</span>
-                            {status !== "idle" && (
-                              <span className={`btn-feedback ${status}`}>
-                                {status === "loading"
-                                  ? "..."
-                                  : status === "success"
-                                    ? "✓"
-                                    : "✕"}
-                              </span>
-                            )}
-                          </button>
+                          />
                         );
                       })}
                     </div>
@@ -799,7 +692,6 @@ function App() {
         ) : null}
       </main>
 
-      {/* Confirmation Dialog */}
       <ConfirmDialog
         isOpen={confirmDialog.isOpen}
         title="Attention"
@@ -810,7 +702,6 @@ function App() {
         onCancel={handleCancelAction}
       />
 
-      {/* Toast notifications */}
       <Toaster
         position="top-right"
         toastOptions={{
