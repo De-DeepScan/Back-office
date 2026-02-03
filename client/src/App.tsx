@@ -15,13 +15,16 @@ interface GameAction {
   params?: string[];
 }
 
+type GameStatus = "connected" | "reconnecting" | "not_started";
+
 interface ConnectedGame {
-  socketId: string;
+  socketId: string | null;
   gameId: string;
   role?: string;
   name: string;
   availableActions: GameAction[];
   state: Record<string, unknown>;
+  status: GameStatus;
 }
 
 interface ExpectedInstance {
@@ -41,7 +44,7 @@ interface GameGroup {
   displayName: string;
   instances: ConnectedGame[];
   expectedInstances: ExpectedInstance[];
-  isConnected: boolean;
+  groupStatus: GameStatus;
 }
 
 // ARIA state interface for preview
@@ -97,13 +100,22 @@ function mergeWithPredefined(games: ConnectedGame[]): GameGroup[] {
   const connectedMap = groupConnectedGames(games);
 
   return PREDEFINED_GAMES.map((def) => {
-    const connected = connectedMap.get(def.baseId) ?? [];
+    const instances = connectedMap.get(def.baseId) ?? [];
+
+    // Calculate group status based on instance statuses
+    let groupStatus: GameStatus = "not_started";
+    if (instances.some((i) => i.status === "connected")) {
+      groupStatus = "connected";
+    } else if (instances.some((i) => i.status === "reconnecting")) {
+      groupStatus = "reconnecting";
+    }
+
     return {
       baseId: def.baseId,
       displayName: def.displayName,
-      instances: connected,
+      instances,
       expectedInstances: def.expectedInstances,
-      isConnected: connected.length > 0,
+      groupStatus,
     };
   });
 }
@@ -535,21 +547,31 @@ function App() {
 
       {/* Tabs - Always show all predefined games */}
       <nav className="game-tabs">
-        {groups.map((group) => (
-          <button
-            key={group.baseId}
-            className={`game-tab ${activeTab === group.baseId ? "active" : ""} ${!group.isConnected ? "disconnected" : ""}`}
-            onClick={() => setActiveTab(group.baseId)}
-          >
-            <span
-              className={`tab-dot ${group.isConnected ? "connected" : "disconnected"}`}
-            />
-            <span className="tab-name">{group.displayName}</span>
-            <span className="tab-count">
-              {group.instances.length}/{group.expectedInstances.length}
-            </span>
-          </button>
-        ))}
+        {groups.map((group) => {
+          const tabStatusClass =
+            group.groupStatus === "connected"
+              ? ""
+              : group.groupStatus === "reconnecting"
+                ? "reconnecting"
+                : "disconnected";
+          const connectedCount = group.instances.filter(
+            (i) => i.status === "connected"
+          ).length;
+
+          return (
+            <button
+              key={group.baseId}
+              className={`game-tab ${activeTab === group.baseId ? "active" : ""} ${tabStatusClass}`}
+              onClick={() => setActiveTab(group.baseId)}
+            >
+              <span className={`tab-dot ${group.groupStatus}`} />
+              <span className="tab-name">{group.displayName}</span>
+              <span className="tab-count">
+                {connectedCount}/{group.expectedInstances.length}
+              </span>
+            </button>
+          );
+        })}
       </nav>
 
       <main className="controls">
@@ -558,16 +580,35 @@ function App() {
             {/* Instances status - show all expected instances */}
             <div className="instances-bar">
               {activeGroup.expectedInstances.map((expected) => {
-                const connectedInst = activeGroup.instances.find(
-                  (inst) => inst.gameId === expected.gameId
+                const inst = activeGroup.instances.find(
+                  (i) => i.gameId === expected.gameId
                 );
-                const isConnected = !!connectedInst;
+                const status = inst?.status ?? "not_started";
 
-                if (isConnected && connectedInst) {
-                  // Connected instance
-                  const stateEntries = formatState(connectedInst.state);
-                  const resetStatus = getStatus(connectedInst.gameId, "reset");
-                  const hasReset = connectedInst.availableActions.some(
+                // Status badge config
+                const statusConfig = {
+                  connected: {
+                    label: "Connecté",
+                    className: "connected",
+                  },
+                  reconnecting: {
+                    label: "Reconnexion...",
+                    className: "reconnecting",
+                  },
+                  not_started: {
+                    label: "Non démarré",
+                    className: "not-started",
+                  },
+                };
+
+                const { label: statusLabel, className: statusClass } =
+                  statusConfig[status];
+
+                // For connected instances, show full details
+                if (status === "connected" && inst) {
+                  const stateEntries = formatState(inst.state);
+                  const resetStatus = getStatus(inst.gameId, "reset");
+                  const hasReset = inst.availableActions.some(
                     (a) => a.id === "reset"
                   );
                   return (
@@ -575,18 +616,15 @@ function App() {
                       key={expected.gameId}
                       className={`instance-card ${expected.role ?? getSubGameClass(expected.gameId)}`}
                     >
-                      <div className="instance-status-badge connected">
+                      <div className={`instance-status-badge ${statusClass}`}>
                         <span className="status-dot" />
-                        Connecté
+                        {statusLabel}
                       </div>
                       <span className="instance-role">
-                        {expected.role
-                          ? getRoleName(connectedInst)
-                          : connectedInst.name}
+                        {expected.role ? getRoleName(inst) : inst.name}
                       </span>
                       <span className="instance-state">
-                        {connectedInst.state.gameStarted ||
-                        connectedInst.state.in_progress
+                        {inst.state.gameStarted || inst.state.in_progress
                           ? "En jeu"
                           : "En attente"}
                       </span>
@@ -607,9 +645,7 @@ function App() {
                       {hasReset && (
                         <button
                           className={`instance-reset-btn ${resetStatus}`}
-                          onClick={() =>
-                            sendCommand(connectedInst.gameId, "reset")
-                          }
+                          onClick={() => sendCommand(inst.gameId, "reset")}
                           disabled={resetStatus === "loading"}
                         >
                           {resetStatus === "loading"
@@ -625,19 +661,23 @@ function App() {
                   );
                 }
 
-                // Disconnected instance
+                // Reconnecting or not started
                 return (
                   <div
                     key={expected.gameId}
-                    className={`instance-card ${expected.role ?? getSubGameClass(expected.gameId)} disconnected`}
+                    className={`instance-card ${expected.role ?? getSubGameClass(expected.gameId)} ${statusClass}`}
                   >
-                    <div className="instance-status-badge disconnected">
+                    <div className={`instance-status-badge ${statusClass}`}>
                       <span className="status-dot" />
-                      Déconnecté
+                      {statusLabel}
                     </div>
-                    <span className="instance-role">{expected.name}</span>
+                    <span className="instance-role">
+                      {inst?.name ?? expected.name}
+                    </span>
                     <span className="instance-state">
-                      En attente de connexion
+                      {status === "reconnecting"
+                        ? "Tentative de reconnexion..."
+                        : "En attente de lancement"}
                     </span>
                   </div>
                 );
