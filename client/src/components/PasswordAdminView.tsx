@@ -18,15 +18,16 @@ export function PasswordAdminView({
     return "default"; // Cyan (en cours de saisie)
   };
 
+  // Nettoyer passwordEntered si c'est "(vide" ou undefined
+  const cleanPassword =
+    !passwordEntered || passwordEntered === "(vide" ? "" : passwordEntered;
+
   return (
     <div className="password-admin-view">
-      <div className="password-admin-label">
-        🔒 Vue Admin - Mot de passe en cours (read-only)
-      </div>
       <div className={`password-boxes ${getBorderClass()}`}>
         {Array.from({ length: PASSWORD_LENGTH }).map((_, index) => (
           <div key={index} className="password-box">
-            {passwordEntered[index] || "_"}
+            <span className="password-char">{cleanPassword[index] || "_"}</span>
           </div>
         ))}
       </div>
