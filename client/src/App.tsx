@@ -7,6 +7,7 @@ import type { TimelineEvent } from "./components/EventTimeline";
 import { InstanceCard } from "./components/InstanceCard";
 import { ActionButton } from "./components/ActionButton";
 import { ConfirmDialog } from "./components/ConfirmDialog";
+import type { AriaState } from "./types/aria";
 import "./App.css";
 
 const API_URL = "http://localhost:3000";
@@ -53,14 +54,7 @@ interface GameGroup {
   groupStatus: GameStatus;
 }
 
-// ARIA state interface for preview
-interface AriaState {
-  isEvil: boolean;
-  isSpeaking: boolean;
-  isDilemmaOpen: boolean;
-  currentDilemmaIndex: number;
-  totalDilemmas: number;
-}
+// ARIA state interface imported from types/aria.ts
 
 // Predefined games that should always be visible
 const PREDEFINED_GAMES: PredefinedGame[] = [
@@ -237,154 +231,6 @@ function getFilteredLabyrintheActions(
     }
     return action;
   });
-}
-
-// ARIA Preview component
-function AriaPreview({ state }: { state: AriaState }) {
-  return (
-    <div className={`aria-preview ${state.isEvil ? "evil" : "good"}`}>
-      <div className="aria-preview-header">
-        <span className="preview-title">ARIA CAT</span>
-      </div>
-      <div className="aria-preview-content">
-        {/* GAUCHE: Informations de statut en texte */}
-        <div className="aria-status-text">
-          <div className="status-line">
-            <span className="status-key">Mode:</span>
-            <span className={`status-value ${state.isEvil ? "evil" : "good"}`}>
-              {state.isEvil ? "Evil" : "Good"}
-            </span>
-          </div>
-          <div className="status-line">
-            <span className="status-key">Voix:</span>
-            <span
-              className={`status-value ${state.isSpeaking ? "active" : ""}`}
-            >
-              {state.isSpeaking ? "Active" : "Inactive"}
-            </span>
-          </div>
-          {state.isDilemmaOpen && (
-            <div className="status-line dilemma">
-              <span className="status-key">Dilemme:</span>
-              <span className="status-value warning">
-                {state.currentDilemmaIndex + 1}/{state.totalDilemmas}
-              </span>
-            </div>
-          )}
-        </div>
-
-        {/* DROITE: Avatar du chat avec animations */}
-        <div className={`aria-avatar ${state.isEvil ? "evil" : ""}`}>
-          <svg viewBox="0 0 200 180" className="aria-cat-mini">
-            <path
-              d={
-                state.isEvil
-                  ? "M 35 110 L 15 55 L 55 80 Q 100 60, 145 80 L 185 55 L 165 110 C 175 140, 145 175, 100 175 C 55 175, 25 140, 35 110 Z"
-                  : "M 35 110 L 30 35 L 65 75 Q 100 55, 135 75 L 170 35 L 165 110 C 175 140, 145 175, 100 175 C 55 175, 25 140, 35 110 Z"
-              }
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="3"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="cat-line"
-            />
-            <g className="eye-group">
-              <path
-                d={
-                  state.isEvil
-                    ? "M 50 115 Q 65 105, 100 100 Q 135 105, 150 115 Q 135 125, 100 130 Q 65 125, 50 115 Z"
-                    : "M 55 115 Q 65 100, 100 85 Q 135 100, 145 115 Q 135 130, 100 145 Q 65 130, 55 115 Z"
-                }
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="3"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-              <line
-                x1="100"
-                y1={state.isEvil ? 103 : 95}
-                x2="100"
-                y2={state.isEvil ? 127 : 135}
-                stroke="currentColor"
-                strokeWidth="3"
-                strokeLinecap="round"
-                className="eye-pupil"
-              />
-            </g>
-            <line
-              x1={state.isEvil ? -10 : 0}
-              y1={state.isEvil ? 95 : 100}
-              x2="45"
-              y2="115"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              className="whisker"
-            />
-            <line
-              x1={state.isEvil ? -15 : -5}
-              y1="120"
-              x2="45"
-              y2={state.isEvil ? 120 : 125}
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              className="whisker"
-            />
-            <line
-              x1={state.isEvil ? -10 : 0}
-              y1={state.isEvil ? 145 : 140}
-              x2="45"
-              y2="135"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              className="whisker"
-            />
-            <line
-              x1="155"
-              y1="115"
-              x2={state.isEvil ? 210 : 200}
-              y2={state.isEvil ? 95 : 100}
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              className="whisker"
-            />
-            <line
-              x1="155"
-              y1={state.isEvil ? 120 : 125}
-              x2={state.isEvil ? 215 : 205}
-              y2="120"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              className="whisker"
-            />
-            <line
-              x1="155"
-              y1="135"
-              x2={state.isEvil ? 210 : 200}
-              y2={state.isEvil ? 145 : 140}
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              className="whisker"
-            />
-          </svg>
-          {state.isSpeaking && (
-            <div className="speaking-indicator">
-              <span className="sound-wave"></span>
-              <span className="sound-wave"></span>
-              <span className="sound-wave"></span>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
 }
 
 interface ConfirmDialogState {
@@ -667,22 +513,20 @@ function App() {
                 const inst = activeGroup.instances.find(
                   (i) => i.gameId === expected.gameId
                 );
+                const ariaState =
+                  expected.gameId === "aria"
+                    ? (getAriaState(games) ?? undefined)
+                    : undefined;
                 return (
                   <InstanceCard
                     key={expected.gameId}
                     instance={inst}
                     expected={expected}
+                    ariaState={ariaState}
                   />
                 );
               })}
             </div>
-
-            {/* ARIA Preview */}
-            {activeGroup.baseId === "aria" &&
-              (() => {
-                const ariaState = getAriaState(games);
-                return ariaState ? <AriaPreview state={ariaState} /> : null;
-              })()}
 
             {/* Actions */}
             {activeGroup.instances.length > 0 &&
