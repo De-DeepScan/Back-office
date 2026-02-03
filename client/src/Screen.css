@@ -1,0 +1,75 @@
+/* Screen.css */
+.screen-container {
+  width: 100vw;
+  height: 100vh;
+  background-color: #000; /* Black Screen */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+  position: fixed;
+  top: 0;
+  left: 0;
+  cursor: none; /* Hide mouse cursor */
+}
+
+/* Click to start overlay */
+.click-to-start {
+  width: 100vw;
+  height: 100vh;
+  background: #111;
+  color: #00ffff;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  font-family: 'Courier New', monospace;
+}
+
+/* The Message Box */
+.message-popup {
+  width: 80%;
+  max-width: 900px;
+  background: rgba(0, 20, 20, 0.95);
+  border: 4px solid #00ffff;
+  box-shadow: 0 0 50px rgba(0, 255, 255, 0.5);
+  color: #00ffff;
+  font-family: 'Courier New', monospace;
+  text-align: center;
+  animation: popup-entry 0.5s ease-out;
+}
+
+.popup-header {
+  background: #00ffff;
+  color: #000;
+  font-weight: bold;
+  font-size: 2rem;
+  padding: 10px;
+  letter-spacing: 5px;
+}
+
+.popup-content {
+  padding: 60px 20px;
+  font-size: 3rem; /* BIG TEXT */
+  font-weight: bold;
+  text-transform: uppercase;
+  line-height: 1.2;
+}
+
+.popup-footer {
+  font-size: 1rem;
+  opacity: 0.6;
+  padding-bottom: 20px;
+  animation: blink 1s infinite;
+}
+
+@keyframes popup-entry {
+  0% { transform: scale(0.8); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 0.2; }
+}
