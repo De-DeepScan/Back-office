@@ -148,11 +148,13 @@
 }
 
 .instance-card {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: var(--space-sm);
   padding: var(--space-lg) var(--space-xl);
+  padding-top: var(--space-2xl);
   background: var(--color-bg-surface);
   border: 2px solid rgba(0, 255, 255, 0.2);
   border-left: 4px solid var(--color-primary);
@@ -176,21 +178,52 @@
 }
 
 .instance-card.disconnected {
-  opacity: 0.4;
+  opacity: 0.5;
   border-style: dashed;
 }
 
-.instance-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: var(--color-text-muted);
+/* Instance status badge */
+.instance-status-badge {
+  position: absolute;
+  top: var(--space-sm);
+  right: var(--space-sm);
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: 2px var(--space-sm);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  border: 1px solid;
+  border-radius: var(--border-radius-sm);
 }
 
-.instance-dot.connected {
-  background: #22c55e;
-  box-shadow: 0 0 10px rgba(34, 197, 94, 0.6);
+.instance-status-badge .status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
   animation: pulse-dot 2s ease-in-out infinite;
+}
+
+.instance-status-badge.connected {
+  color: #22c55e;
+  border-color: rgba(34, 197, 94, 0.4);
+  background: rgba(34, 197, 94, 0.1);
+}
+
+.instance-status-badge.connected .status-dot {
+  background: #22c55e;
+  box-shadow: 0 0 6px rgba(34, 197, 94, 0.6);
+}
+
+.instance-status-badge.disconnected {
+  color: #ff6666;
+  border-color: rgba(255, 102, 102, 0.4);
+  background: rgba(255, 102, 102, 0.1);
+}
+
+.instance-status-badge.disconnected .status-dot {
+  background: #ff6666;
 }
 
 .instance-role {
@@ -202,10 +235,11 @@
 }
 
 .instance-state {
-  color: var(--color-text-muted);
-  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
   text-transform: uppercase;
   letter-spacing: 1px;
+  font-weight: 500;
 }
 
 .instance-state-details {
@@ -218,41 +252,45 @@
 .state-tag {
   display: flex;
   gap: var(--space-xs);
-  padding: 2px var(--space-sm);
+  padding: 4px var(--space-sm);
   font-family: var(--font-primary);
-  font-size: var(--text-xs);
+  font-size: var(--text-sm);
   letter-spacing: 1px;
-  background: rgba(0, 255, 255, 0.05);
-  border: 1px solid rgba(0, 255, 255, 0.15);
+  background: rgba(0, 255, 255, 0.08);
+  border: 1px solid rgba(0, 255, 255, 0.25);
+  border-radius: var(--border-radius-sm);
 }
 
 .state-tag-label {
-  color: var(--color-text-muted);
+  color: var(--color-text-secondary);
   text-transform: uppercase;
 }
 
 .state-tag-value {
   color: var(--color-text-primary);
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .instance-reset-btn {
   margin-top: var(--space-sm);
   padding: var(--space-xs) var(--space-lg);
   font-family: var(--font-primary);
-  font-size: var(--text-xs);
+  font-size: var(--text-sm);
   text-transform: uppercase;
   letter-spacing: 1px;
-  color: var(--color-danger);
-  background: transparent;
-  border: 1px solid rgba(255, 0, 0, 0.3);
+  font-weight: 600;
+  color: #ff6666;
+  background: rgba(255, 102, 102, 0.1);
+  border: 1px solid rgba(255, 102, 102, 0.4);
+  border-radius: var(--border-radius-sm);
   cursor: pointer;
   transition: all var(--duration-fast) ease;
 }
 
 .instance-reset-btn:hover:not(:disabled) {
-  background: rgba(255, 0, 0, 0.1);
-  border-color: var(--color-danger);
+  background: rgba(255, 102, 102, 0.2);
+  border-color: #ff6666;
+  box-shadow: 0 0 10px rgba(255, 102, 102, 0.3);
 }
 
 .instance-reset-btn:disabled {
@@ -262,12 +300,13 @@
 
 .instance-reset-btn.success {
   color: #22c55e;
-  border-color: rgba(34, 197, 94, 0.3);
+  background: rgba(34, 197, 94, 0.1);
+  border-color: rgba(34, 197, 94, 0.4);
 }
 
 .instance-reset-btn.error {
-  color: var(--color-danger);
-  border-color: var(--color-danger);
+  color: #ff6666;
+  border-color: #ff6666;
 }
 
 /* === GAME PANEL === */

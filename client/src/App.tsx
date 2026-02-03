@@ -62,6 +62,11 @@ const PREDEFINED_GAMES: PredefinedGame[] = [
       { gameId: "sidequest-uplink", name: "Uplink" },
     ],
   },
+  {
+    baseId: "aria",
+    displayName: "ARIA",
+    expectedInstances: [{ gameId: "aria", name: "ARIA Cat" }],
+  },
 ];
 
 // Map of gameId prefixes that should be grouped under a single tab
@@ -144,7 +149,15 @@ function formatState(
       entries.push({ label: "Phase", value: `${val}/6` });
     else if (key === "in_progress")
       entries.push({ label: "État", value: val ? "En cours" : "En attente" });
-    else if (key === "gameStarted") continue; // handled elsewhere
+    else if (key === "aiEnabled")
+      entries.push({ label: "IA", value: val ? "Activée" : "Désactivée" });
+    else if (key === "gameStarted")
+      continue; // handled elsewhere
+    else if (key === "role")
+      continue; // handled by card styling
+    else if (key === "isGameOver")
+      continue; // handled elsewhere
+    else if (key === "isVictory") continue; // handled elsewhere
   }
   return entries;
 }
@@ -354,13 +367,6 @@ function App() {
       <main className="controls">
         {activeGroup ? (
           <div className="game-panel">
-            {/* Connection status badge */}
-            <div
-              className={`panel-status-badge ${activeGroup.isConnected ? "connected" : "disconnected"}`}
-            >
-              <span className="status-dot" />
-              {activeGroup.isConnected ? "Connecté" : "Déconnecté"}
-            </div>
             {/* Instances status - show all expected instances */}
             <div className="instances-bar">
               {activeGroup.expectedInstances.map((expected) => {
@@ -381,7 +387,10 @@ function App() {
                       key={expected.gameId}
                       className={`instance-card ${expected.role ?? getSubGameClass(expected.gameId)}`}
                     >
-                      <span className="instance-dot connected" />
+                      <div className="instance-status-badge connected">
+                        <span className="status-dot" />
+                        Connecté
+                      </div>
                       <span className="instance-role">
                         {expected.role
                           ? getRoleName(connectedInst)
@@ -391,9 +400,9 @@ function App() {
                         {connectedInst.state.gameStarted ||
                         connectedInst.state.in_progress
                           ? "En jeu"
-                          : "Connecté"}
+                          : "En attente"}
                       </span>
-                      {!expected.role && stateEntries.length > 0 && (
+                      {stateEntries.length > 0 && (
                         <div className="instance-state-details">
                           {stateEntries.map((entry) => (
                             <span key={entry.label} className="state-tag">
@@ -434,9 +443,14 @@ function App() {
                     key={expected.gameId}
                     className={`instance-card ${expected.role ?? getSubGameClass(expected.gameId)} disconnected`}
                   >
-                    <span className="instance-dot" />
+                    <div className="instance-status-badge disconnected">
+                      <span className="status-dot" />
+                      Déconnecté
+                    </div>
                     <span className="instance-role">{expected.name}</span>
-                    <span className="instance-state">Déconnecté</span>
+                    <span className="instance-state">
+                      En attente de connexion
+                    </span>
                   </div>
                 );
               })}

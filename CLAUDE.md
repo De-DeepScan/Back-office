@@ -202,3 +202,14 @@ cd client && pnpm dev # Lance le front React
 - Corriger les erreurs immédiatement
 - Proposer des alternatives si approche sous-optimale
 - Pas de formules creuses ("Super !", "Excellent !")
+
+## Mini-jeux (tests/)
+
+Les projets dans `tests/` sont des copies de référence des mini-jeux pour analyse uniquement. **Ne jamais modifier ces fichiers directement.**
+
+Pour demander une modification à un mini-jeu :
+
+1. Créer un document dans `docs/` expliquant le problème et la solution
+2. Transmettre ce document à l'équipe responsable du mini-jeu concerné
+
+Format du document : `docs/[nom-mini-jeu]-[description-courte].md`
