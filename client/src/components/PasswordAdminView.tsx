@@ -18,9 +18,15 @@ export function PasswordAdminView({
     return "default"; // Cyan (en cours de saisie)
   };
 
-  // Nettoyer passwordEntered si c'est "(vide" ou undefined
+  // Nettoyer passwordEntered : gérer tous les cas de valeurs vides/invalides
   const cleanPassword =
-    !passwordEntered || passwordEntered === "(vide" ? "" : passwordEntered;
+    passwordEntered &&
+    passwordEntered.trim() !== "" &&
+    !passwordEntered.includes("(vide") &&
+    passwordEntered !== "undefined" &&
+    passwordEntered !== "null"
+      ? passwordEntered
+      : "";
 
   return (
     <div className="password-admin-view">
