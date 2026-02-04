@@ -242,12 +242,8 @@ export function setupGamemaster(io: Server): void {
           );
 
           // Resume Labyrinth (choice is made, game can continue)
-          sendCommand(io, "labyrinthe:explorer", "dilemma_pause", {
-            paused: false,
-          });
-          sendCommand(io, "labyrinthe:protector", "dilemma_pause", {
-            paused: false,
-          });
+          sendCommand(io, "labyrinthe:explorer", "dilemma_end", {});
+          sendCommand(io, "labyrinthe:protector", "dilemma_end", {});
 
           // Show video on Map
           sendCommand(io, "map", "show_dilemme", {

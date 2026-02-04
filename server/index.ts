@@ -45,8 +45,8 @@ app.post("/api/games/:gameId/command", (req, res) => {
 
   // Intercept enable_dilemma to pause Labyrinth
   if (gameId === "aria" && action === "enable_dilemma") {
-    sendCommand(io, "labyrinthe:explorer", "dilemma_pause", { paused: true });
-    sendCommand(io, "labyrinthe:protector", "dilemma_pause", { paused: true });
+    sendCommand(io, "labyrinthe:explorer", "dilemma_start", {});
+    sendCommand(io, "labyrinthe:protector", "dilemma_start", {});
     console.log("[relay] Paused Labyrinth for dilemma");
   }
 
