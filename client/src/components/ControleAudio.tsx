@@ -167,6 +167,30 @@ const QUICK_RESPONSES: PresetConfig[] = [
     file: "stupid-questions.mp3",
     phase: 0,
   },
+  {
+    id: "global-sound-2",
+    label: "Vous avez mis 3 minutes pour trouver un code",
+    file: "global-sound-2.mp3",
+    phase: 0,
+  },
+  {
+    id: "global-sound-3",
+    label: "Google dans Google",
+    file: "global-sound-3.mp3",
+    phase: 0,
+  },
+  {
+    id: "global-sound-4",
+    label: "Captchas",
+    file: "global-sound-4.mp3",
+    phase: 0,
+  },
+  {
+    id: "global-sound-5",
+    label: "Mode veille",
+    file: "global-sound-5.mp3",
+    phase: 0,
+  },
 ];
 
 const PHASES = [
