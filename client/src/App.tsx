@@ -682,7 +682,7 @@ function App() {
                           <label className="messagerie-input-label">MESSAGE PERSONNALISÉ</label>
                           <input
                             type="text"
-                            className={`messagerie-input ${isMessageSending ? "disabled" : ""}`}
+                            className="messagerie-input"
                             value={customMessage}
                             onChange={(e: ChangeEvent<HTMLInputElement>) =>
                               setCustomMessage(e.target.value)
@@ -704,7 +704,6 @@ function App() {
                               }
                             }}
                             placeholder={isMessageSending ? "Message en cours..." : "Message + Entrée"}
-                            disabled={isMessageSending}
                           />
                         </div>
                       )}
@@ -729,20 +728,32 @@ function App() {
                           else if (isSuccess) feedbackStatus = "success";
                           else if (isError) feedbackStatus = "error";
 
+                          // For Messagerie, also disable buttons when a message is being displayed
+                          const isMessagerieBlocked = activeGroup.baseId === "messagerie" && isMessageSending;
+
                           return (
                             <ActionButton
                               key={action.id}
                               action={action}
                               variant={getVariant(action.id)}
                               status={feedbackStatus}
-                              onClick={(payload) =>
+                              onClick={(payload) => {
+                                // For Messagerie predefined messages, start the timer
+                                if (activeGroup.baseId === "messagerie" && action.id.startsWith("msg_")) {
+                                  setIsMessageSending(true);
+                                  // Estimate duration based on label length (approximation)
+                                  const estimatedContent = action.label || "";
+                                  setTimeout(() => {
+                                    setIsMessageSending(false);
+                                  }, getMessageDuration(estimatedContent));
+                                }
                                 handleActionClick(
                                   activeGroup.instances,
                                   action,
                                   payload
-                                )
-                              }
-                              disabled={isLoading}
+                                );
+                              }}
+                              disabled={isLoading || isMessagerieBlocked}
                             />
                           );
                         })}
