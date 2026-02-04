@@ -518,7 +518,7 @@ export function ControleAudio({ audioPlayers }: ControleAudioProps) {
           [sound.id]: { ...prev[sound.id], active: false },
         }));
       } else {
-        const vol = state?.volume ?? 0.5;
+        const vol = state?.volume ?? 0.1;
         socket.emit("audio:play-ambient", {
           soundId: sound.id,
           file: sound.file,
@@ -766,7 +766,7 @@ export function ControleAudio({ audioPlayers }: ControleAudioProps) {
               {AMBIENT_SOUNDS.map((sound) => {
                 const state = ambientStates[sound.id];
                 const isActive = state?.active ?? false;
-                const volume = state?.volume ?? 0.5;
+                const volume = state?.volume ?? 0.1;
                 const Icon = sound.icon;
 
                 return (
@@ -788,6 +788,9 @@ export function ControleAudio({ audioPlayers }: ControleAudioProps) {
                       }
                       className="sc-ambient-volume"
                     />
+                    <span className="sc-ambient-percent">
+                      {Math.round(volume * 100)}%
+                    </span>
                     <span className="sc-ambient-label">{sound.label}</span>
                   </div>
                 );

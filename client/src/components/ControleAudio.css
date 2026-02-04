@@ -641,6 +641,14 @@
   box-shadow: 0 0 6px rgba(0, 255, 255, 0.5);
 }
 
+.sc-ambient-percent {
+  font-size: 0.65rem;
+  font-variant-numeric: tabular-nums;
+  color: rgba(0, 255, 255, 0.5);
+  text-align: center;
+  line-height: 1;
+}
+
 .sc-ambient-label {
   font-size: 0.6rem;
   letter-spacing: 0.5px;
