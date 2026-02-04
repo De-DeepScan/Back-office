@@ -216,6 +216,17 @@ export function setupGamemaster(io: Server): void {
             );
           }
         }
+
+        // Relay Sidequest score to Labyrinth
+        if (data.name === "point_earned" && key === "sidequest") {
+          const payload = {
+            points: data.data?.points,
+            totalPoints: data.data?.totalPoints,
+          };
+          sendCommand(io, "labyrinthe:explorer", "sidequest_score", payload);
+          sendCommand(io, "labyrinthe:protector", "sidequest_score", payload);
+          console.log("[relay] Sidequest score → Labyrinth:", payload);
+        }
       }
     );
 
