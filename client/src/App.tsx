@@ -244,12 +244,36 @@ function getFilteredLabyrintheActions(
 
   const gameStarted = labyrintheState.gameStarted as boolean;
 
-  return actions.map((action) => {
-    if (action.id === "start" && gameStarted) {
-      return { ...action, disabled: true };
-    }
-    return action;
-  });
+  return actions
+    .filter((action) => {
+      // Hide enable_ai, disable_ai, and set_ai - we use a toggle instead
+      if (action.id === "enable_ai" || action.id === "disable_ai" || action.id === "set_ai") {
+        return false;
+      }
+      return true;
+    })
+    .map((action) => {
+      if (action.id === "start" && gameStarted) {
+        return { ...action, disabled: true };
+      }
+      return action;
+    });
+}
+
+// Check if both labyrinthe instances are connected
+function areLabyrintheInstancesConnected(instances: ConnectedGame[]): boolean {
+  const explorer = instances.find((i) => i.role === "explorer");
+  const protector = instances.find((i) => i.role === "protector");
+  return (
+    explorer?.status === "connected" && protector?.status === "connected"
+  );
+}
+
+// Get labyrinthe AI state from any connected instance
+function getLabyrintheAIState(instances: ConnectedGame[]): boolean | null {
+  const connectedInstance = instances.find((i) => i.status === "connected");
+  if (!connectedInstance) return null;
+  return (connectedInstance.state.aiEnabled as boolean) ?? false;
 }
 
 // Filter Map actions based on game state
@@ -708,6 +732,45 @@ function App() {
                         </div>
                       )}
 
+                      {/* AI Toggle for Labyrinthe */}
+                      {activeGroup.baseId === "labyrinthe" && (() => {
+                        const bothConnected = areLabyrintheInstancesConnected(activeGroup.instances);
+                        const aiEnabled = getLabyrintheAIState(activeGroup.instances);
+
+                        return (
+                          <div className="labyrinthe-ai-toggle-section">
+                            <label className="labyrinthe-toggle-label">CONTRÔLE IA</label>
+                            <div className={`labyrinthe-toggle-container ${!bothConnected ? "disabled" : ""}`}>
+                              <span className={`toggle-status ${aiEnabled ? "active" : ""}`}>
+                                {aiEnabled ? "IA ACTIVÉE" : "IA DÉSACTIVÉE"}
+                              </span>
+                              <button
+                                className={`ai-toggle-button ${aiEnabled ? "active" : ""}`}
+                                onClick={() => {
+                                  if (bothConnected) {
+                                    sendToAll(
+                                      activeGroup.instances,
+                                      { id: "set_ai", label: "Toggle IA" },
+                                      { enabled: !aiEnabled }
+                                    );
+                                  }
+                                }}
+                                disabled={!bothConnected}
+                              >
+                                <span className="toggle-track">
+                                  <span className="toggle-thumb" />
+                                </span>
+                              </button>
+                            </div>
+                            {!bothConnected && (
+                              <span className="toggle-warning">
+                                Les deux joueurs doivent être connectés
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })()}
+
                       <div className="action-grid">
                         {regularActions.map((action) => {
                           const allStatuses = activeGroup.instances.map(
@@ -731,6 +794,9 @@ function App() {
                           // For Messagerie, also disable buttons when a message is being displayed
                           const isMessagerieBlocked = activeGroup.baseId === "messagerie" && isMessageSending;
 
+                          // For Labyrinthe, block all actions if either instance is disconnected
+                          const isLabyrintheBlocked = activeGroup.baseId === "labyrinthe" && !areLabyrintheInstancesConnected(activeGroup.instances);
+
                           return (
                             <ActionButton
                               key={action.id}
@@ -753,7 +819,7 @@ function App() {
                                   payload
                                 );
                               }}
-                              disabled={isLoading || isMessagerieBlocked}
+                              disabled={isLoading || isMessagerieBlocked || isLabyrintheBlocked || action.disabled}
                             />
                           );
                         })}
@@ -780,6 +846,9 @@ function App() {
                             else if (isSuccess) feedbackStatus = "success";
                             else if (isError) feedbackStatus = "error";
 
+                            // For Labyrinthe, block reset if either instance is disconnected
+                            const isLabyrintheBlocked = activeGroup.baseId === "labyrinthe" && !areLabyrintheInstancesConnected(activeGroup.instances);
+
                             return (
                               <ActionButton
                                 key={action.id}
@@ -796,7 +865,7 @@ function App() {
                                     payload
                                   )
                                 }
-                                disabled={isLoading}
+                                disabled={isLoading || isLabyrintheBlocked}
                               />
                             );
                           })}
