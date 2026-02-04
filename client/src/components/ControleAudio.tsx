@@ -313,6 +313,17 @@ export function ControleAudio({ audioPlayers }: ControleAudioProps) {
   useEffect(() => {
     socket.emit("audio:volume-ia", { volume: iaVolume });
     socket.emit("audio:master-volume", { volume: generalVolume });
+
+    // Re-apply ambient master to all active sounds
+    const states = ambientByPhase[selectedPhase] ?? {};
+    for (const [soundId, state] of Object.entries(states)) {
+      if (state.active) {
+        socket.emit("audio:set-ambient-volume", {
+          soundId,
+          volume: state.volume * ambientMaster,
+        });
+      }
+    }
   }, [selectedPhase]);
 
   // Persist per-phase data
