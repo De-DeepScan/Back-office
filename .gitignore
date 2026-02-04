@@ -6,5 +6,6 @@ data/*.db
 uploads/*
 !uploads/.gitkeep
 .DS_Store
+.env.local
 external/
 .claude/

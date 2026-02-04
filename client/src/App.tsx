@@ -1,5 +1,4 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { io } from "socket.io-client";
 import { toast, Toaster } from "sonner";
 import { Navbar } from "./components/Navbar";
 import { EventTimeline } from "./components/EventTimeline";
@@ -9,9 +8,9 @@ import { ActionButton } from "./components/ActionButton";
 import { ConfirmDialog } from "./components/ConfirmDialog";
 import type { AriaState } from "./types/aria";
 import "./App.css";
-
-const API_URL = "http://localhost:3000";
-const socket = io(API_URL);
+import VoiceCloner from "./VoiceCloner";
+import SoundPad from "./SoundPad";
+import { socket, API_URL } from "./socket";
 
 type ActionStatus = "idle" | "loading" | "success" | "error";
 
@@ -78,16 +77,12 @@ const PREDEFINED_GAMES: PredefinedGame[] = [
   },
 ];
 
-// Map of gameId prefixes that should be grouped under a single tab
-const GAME_GROUP_PREFIXES: Record<string, string> = {};
-
 function groupConnectedGames(
   games: ConnectedGame[]
 ): Map<string, ConnectedGame[]> {
   const groups = new Map<string, ConnectedGame[]>();
   for (const game of games) {
-    const rawBase = game.gameId.split(":")[0];
-    const baseId = GAME_GROUP_PREFIXES[rawBase] ?? rawBase;
+    const baseId = game.gameId.split(":")[0];
     const list = groups.get(baseId) ?? [];
     list.push(game);
     groups.set(baseId, list);
@@ -246,6 +241,7 @@ function App() {
   const [connected, setConnected] = useState(false);
   const [activeTab, setActiveTab] = useState<string | null>(null);
   const [statuses, setStatuses] = useState<Record<string, ActionStatus>>({});
+  const [audioPlayerCount, setAudioPlayerCount] = useState(0);
   const [events, setEvents] = useState<TimelineEvent[]>([]);
   const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState>({
     isOpen: false,
@@ -330,6 +326,10 @@ function App() {
       setGames(data);
     });
 
+    socket.on("audio-players-updated", (data: { count: number }) =>
+      setAudioPlayerCount(data.count)
+    );
+
     fetch(`${API_URL}/api/games`)
       .then((r) => r.json())
       .then(setGames)
@@ -339,14 +339,27 @@ function App() {
       socket.off("connect");
       socket.off("disconnect");
       socket.off("games_updated");
+      socket.off("audio-players-updated");
     };
   }, [addEvent, games]);
 
   const groups = useMemo(() => mergeWithPredefined(games), [games]);
 
   useEffect(() => {
-    if (groups.length > 0 && !activeTab) {
+    // Don't auto-switch if we're on sound_control tab
+    if (activeTab === "sound_control") return;
+
+    // Auto-select first game tab if no valid game tab is active
+    if (
+      groups.length > 0 &&
+      (!activeTab || !groups.find((g) => g.baseId === activeTab))
+    ) {
       setActiveTab(groups[0].baseId);
+    }
+
+    // Clear tab if no games available and not on sound_control
+    if (groups.length === 0 && activeTab !== "sound_control") {
+      setActiveTab(null);
     }
   }, [groups, activeTab]);
 
@@ -501,11 +514,23 @@ function App() {
         connected={connected}
         activeTab={activeTab}
         onTabChange={setActiveTab}
+        audioPlayerCount={audioPlayerCount}
       />
       <EventTimeline events={events} />
 
       <main className="controls">
-        {activeGroup ? (
+        {activeTab === "sound_control" ? (
+          <div className="sound-control-layout">
+            <div className="sound-control-col">
+              <div className="col-header">IA</div>
+              <VoiceCloner />
+            </div>
+            <div className="sound-control-col">
+              <div className="col-header">AMBIANCE SONORE</div>
+              <SoundPad />
+            </div>
+          </div>
+        ) : activeGroup ? (
           <div className="game-panel">
             {/* Instance cards */}
             <div className="instances-bar-compact">

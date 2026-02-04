@@ -609,6 +609,34 @@
   align-items: flex-end;
 }
 
+.controls-full {
+  justify-content: stretch;
+}
+
+/* === SOUND CONTROL 2-COLUMN LAYOUT === */
+.sound-control-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 40px;
+  width: 100%;
+}
+
+.sound-control-col {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.col-header {
+  font-family: var(--font-primary);
+  font-size: 0.7rem;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--color-primary);
+  opacity: 0.5;
+  padding-bottom: var(--space-sm);
+}
+
 .sound-wave {
   width: 4px;
   height: 12px;
@@ -1196,4 +1224,25 @@
     width: 30px;
     height: 27px;
   }
+}
+
+/* Sound Control Tab */
+.game-status-block.sound-tab {
+  border-color: rgba(0, 255, 255, 0.4);
+}
+
+.game-status-block.sound-tab .status-dot.sound-dot {
+  background: #00ffff;
+  box-shadow: 0 0 6px rgba(0, 255, 255, 0.8);
+}
+
+.game-status-block.sound-tab:hover {
+  border-color: rgba(0, 255, 255, 0.6);
+  box-shadow: 0 4px 12px rgba(0, 255, 255, 0.3);
+}
+
+.game-status-block.sound-tab.active {
+  border-color: #00ffff;
+  background: rgba(0, 255, 255, 0.2);
+  box-shadow: 0 0 25px rgba(0, 255, 255, 0.4);
 }
