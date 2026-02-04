@@ -1,6 +1,12 @@
-import { useState, useCallback, useEffect, KeyboardEvent } from "react";
+import {
+  useState,
+  useCallback,
+  useEffect,
+  useRef,
+  KeyboardEvent,
+  PointerEvent as RPointerEvent,
+} from "react";
 import { socket } from "../socket";
-import { MusicWidget } from "./MusicWidget";
 import {
   Cpu,
   CircuitBoard,
@@ -174,6 +180,63 @@ function formatTime(seconds: number): string {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
+function VolumeFader({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  onChange: (v: number) => void;
+}) {
+  const trackRef = useRef<HTMLDivElement>(null);
+  const dragging = useRef(false);
+
+  const volumeFromPointer = (e: { clientY: number }) => {
+    const rect = trackRef.current!.getBoundingClientRect();
+    const ratio =
+      1 - Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
+    onChange(Math.round(ratio * 100) / 100);
+  };
+
+  const onPointerDown = (e: RPointerEvent<HTMLDivElement>) => {
+    dragging.current = true;
+    trackRef.current!.setPointerCapture(e.pointerId);
+    volumeFromPointer(e);
+  };
+
+  const onPointerMove = (e: RPointerEvent<HTMLDivElement>) => {
+    if (dragging.current) volumeFromPointer(e);
+  };
+
+  const onPointerUp = () => {
+    dragging.current = false;
+  };
+
+  return (
+    <div className="sc-fader">
+      <span className="sc-fader-label">{label}</span>
+      <span className="sc-fader-max" onClick={() => onChange(1)}>
+        MAX
+      </span>
+      <div
+        ref={trackRef}
+        className="sc-fader-track"
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
+      >
+        <div className="sc-fader-fill" style={{ height: `${value * 100}%` }} />
+        <span className="sc-fader-value">{Math.round(value * 100)}%</span>
+      </div>
+      <span className="sc-fader-min" onClick={() => onChange(0)}>
+        MIN
+      </span>
+    </div>
+  );
+}
+
 export function ControleAudio({ audioPlayers }: ControleAudioProps) {
   // Phase progression state
   const [currentPhase, setCurrentPhase] = useState(1);
@@ -181,8 +244,8 @@ export function ControleAudio({ audioPlayers }: ControleAudioProps) {
   const [selectedPhase, setSelectedPhase] = useState(1);
 
   // Volume states
-  const [iaVolume, setIaVolume] = useState(1);
-  const [ambientVolume, setAmbientVolume] = useState(1);
+  const [iaVolume, setIaVolume] = useState(0.5);
+  const [ambientVolume, setAmbientVolume] = useState(0.5);
 
   // Input states
   const [participantName, setParticipantName] = useState("");
@@ -205,7 +268,7 @@ export function ControleAudio({ audioPlayers }: ControleAudioProps) {
   // Voice sync
   const [selectedVoiceId, setSelectedVoiceId] = useState<string | null>(null);
 
-  // Load saved voice on mount
+  // Load saved voice on mount + sync initial volumes
   useEffect(() => {
     const stored = localStorage.getItem("escape_voices");
     if (stored) {
@@ -215,6 +278,8 @@ export function ControleAudio({ audioPlayers }: ControleAudioProps) {
       );
       if (aria) setSelectedVoiceId(aria.id);
     }
+    socket.emit("audio:volume-ia", { volume: 0.5 });
+    socket.emit("audio:master-volume", { volume: 0.5 });
   }, []);
 
   // Listen for preset progress
@@ -373,13 +438,21 @@ export function ControleAudio({ audioPlayers }: ControleAudioProps) {
           ...prev,
           [presetId]: { ...prev[presetId], playing: false },
         }));
+      } else if (state && state.currentTime > 0) {
+        // Resume paused preset
+        socket.emit("audio:resume-preset", { presetIdx: idx });
+        setPresetStates((prev) => ({
+          ...prev,
+          [presetId]: { ...prev[presetId], playing: true },
+        }));
       } else {
+        // Start new preset
         socket.emit("audio:play-preset", { presetIdx: idx, file });
         setPresetStates((prev) => ({
           ...prev,
           [presetId]: {
             playing: true,
-            currentTime: prev[presetId]?.currentTime ?? 0,
+            currentTime: 0,
             duration: prev[presetId]?.duration ?? 0,
           },
         }));
@@ -468,9 +541,8 @@ export function ControleAudio({ audioPlayers }: ControleAudioProps) {
         [sound.id]: { active: prev[sound.id]?.active ?? false, volume },
       }));
       if (ambientStates[sound.id]?.active) {
-        socket.emit("audio:play-ambient", {
+        socket.emit("audio:set-ambient-volume", {
           soundId: sound.id,
-          file: sound.file,
           volume,
         });
       }
@@ -505,24 +577,11 @@ export function ControleAudio({ audioPlayers }: ControleAudioProps) {
       {/* Main Content with Volume Faders */}
       <div className="sc-main-layout">
         {/* Left Volume Fader - Voix IA */}
-        <div className="sc-fader">
-          <span className="sc-fader-label">Voix IA</span>
-          <span className="sc-fader-max">MAX</span>
-          <div className="sc-fader-track">
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.01"
-              value={iaVolume}
-              onChange={(e) => handleIaVolume(parseFloat(e.target.value))}
-              className="sc-fader-input"
-              orient="vertical"
-            />
-          </div>
-          <span className="sc-fader-value">{Math.round(iaVolume * 100)}%</span>
-          <span className="sc-fader-min">MIN</span>
-        </div>
+        <VolumeFader
+          label="Voix IA"
+          value={iaVolume}
+          onChange={handleIaVolume}
+        />
 
         {/* Center Content */}
         <div className="sc-center">
@@ -738,31 +797,11 @@ export function ControleAudio({ audioPlayers }: ControleAudioProps) {
         </div>
 
         {/* Right Volume Fader - Ambiance */}
-        <div className="sc-fader">
-          <span className="sc-fader-label">Ambiance</span>
-          <span className="sc-fader-max">MAX</span>
-          <div className="sc-fader-track">
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.01"
-              value={ambientVolume}
-              onChange={(e) => handleAmbientVolume(parseFloat(e.target.value))}
-              className="sc-fader-input"
-              orient="vertical"
-            />
-          </div>
-          <span className="sc-fader-value">
-            {Math.round(ambientVolume * 100)}%
-          </span>
-          <span className="sc-fader-min">MIN</span>
-        </div>
-      </div>
-
-      {/* Music Widget - Bottom Right */}
-      <div className="sc-music-widget-container">
-        <MusicWidget />
+        <VolumeFader
+          label="Ambiance"
+          value={ambientVolume}
+          onChange={handleAmbientVolume}
+        />
       </div>
     </div>
   );

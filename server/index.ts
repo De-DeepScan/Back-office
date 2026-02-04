@@ -2,6 +2,8 @@ import express from "express";
 import cors from "cors";
 import { createServer } from "node:http";
 import { networkInterfaces } from "node:os";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { Server } from "socket.io";
 import {
   setupGamemaster,
@@ -14,11 +16,14 @@ const app = express();
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
   cors: { origin: "*" },
-  maxHttpBufferSize: 5e6,
+  maxHttpBufferSize: 1e6,
 });
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 app.use(cors());
 app.use(express.json());
+app.use("/audio", express.static(path.join(__dirname, "audio")));
 
 // List connected mini-games
 app.get("/api/games", (_req, res) => {

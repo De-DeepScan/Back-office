@@ -207,10 +207,22 @@
 
   <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
   <script>
-    // Audio channels
-    const presetAudios = new Map(); // presetIdx -> Audio
+    // Web Audio API context
+    let audioCtx = null;
+
+    function getAudioCtx() {
+      if (!audioCtx) audioCtx = new AudioContext();
+      return audioCtx;
+    }
+
+    // Audio channels: store { audio, source, gainNode } per channel
+    const presetAudios = new Map(); // presetIdx -> { audio, source, gainNode }
+    const ambientAudios = new Map(); // soundId -> { audio, source, gainNode }
+
+    // TTS uses simple Audio (base64, no file on disk)
     const ttsAudio = new Audio();
-    const ambientAudios = new Map(); // soundId -> Audio
+    let ttsSource = null;
+    let ttsGain = null;
 
     // Volume state
     let masterVolume = 1;
@@ -218,11 +230,12 @@
     let ambientVolume = 1;
 
     let socket = null;
+    let serverBaseUrl = "";
     let audioUnlocked = false;
 
     function unlockAudio() {
-      const silent = new AudioContext();
-      silent.resume().then(() => silent.close());
+      const ctx = getAudioCtx();
+      ctx.resume().catch(() => {});
       const a = ttsAudio;
       a.src = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=";
       a.play().then(() => { a.pause(); a.currentTime = 0; a.src = ""; }).catch(() => {});
@@ -250,45 +263,82 @@
       document.getElementById("statusText").textContent = connected ? "Connecte" : "Deconnecte";
     }
 
+    function createAudioNode(audio) {
+      const ctx = getAudioCtx();
+      const source = ctx.createMediaElementSource(audio);
+      const gainNode = ctx.createGain();
+      source.connect(gainNode);
+      gainNode.connect(ctx.destination);
+      return { source, gainNode };
+    }
+
+    function cleanupAudioNode(entry) {
+      if (!entry) return;
+      entry.audio.pause();
+      entry.audio.src = "";
+      entry.source.disconnect();
+      entry.gainNode.disconnect();
+    }
+
     function applyPresetVolume() {
-      for (const a of presetAudios.values()) a.volume = masterVolume;
+      for (const entry of presetAudios.values()) {
+        entry.gainNode.gain.value = masterVolume;
+      }
     }
 
     function getOrCreatePresetAudio(idx) {
       if (presetAudios.has(idx)) return presetAudios.get(idx);
-      const a = new Audio();
-      a.volume = masterVolume;
-      a.addEventListener("timeupdate", () => {
-        if (!a.paused && socket && socket.connected) {
+      const audio = new Audio();
+      audio.crossOrigin = "anonymous";
+      const { source, gainNode } = createAudioNode(audio);
+      gainNode.gain.value = masterVolume;
+
+      audio.addEventListener("timeupdate", () => {
+        if (!audio.paused && socket && socket.connected) {
           socket.emit("audio:preset-progress", {
             presetIdx: idx,
-            currentTime: a.currentTime,
-            duration: a.duration || 0,
+            currentTime: audio.currentTime,
+            duration: audio.duration || 0,
           });
         }
       });
-      a.addEventListener("ended", () => {
+      audio.addEventListener("ended", () => {
         if (socket && socket.connected) {
           socket.emit("audio:preset-progress", {
             presetIdx: idx,
-            currentTime: a.duration || 0,
-            duration: a.duration || 0,
+            currentTime: audio.duration || 0,
+            duration: audio.duration || 0,
             ended: true,
           });
         }
+        cleanupAudioNode(presetAudios.get(idx));
         presetAudios.delete(idx);
       });
-      presetAudios.set(idx, a);
-      return a;
+
+      const entry = { audio, source, gainNode };
+      presetAudios.set(idx, entry);
+      return entry;
     }
 
     function applyTtsVolume() {
-      ttsAudio.volume = Math.min(1, iaVolume * masterVolume);
+      const vol = Math.min(1, iaVolume * masterVolume);
+      if (ttsGain) ttsGain.gain.value = vol;
+      else ttsAudio.volume = vol;
     }
 
     function applyAmbientVolume() {
-      for (const a of ambientAudios.values()) {
-        a.volume = Math.min(1, ambientVolume * masterVolume);
+      for (const entry of ambientAudios.values()) {
+        entry.gainNode.gain.value = Math.min(1, ambientVolume * masterVolume);
+      }
+    }
+
+    function initTtsAudioNode() {
+      if (!ttsSource) {
+        const ctx = getAudioCtx();
+        ttsSource = ctx.createMediaElementSource(ttsAudio);
+        ttsGain = ctx.createGain();
+        ttsSource.connect(ttsGain);
+        ttsGain.connect(ctx.destination);
       }
     }
 
@@ -300,6 +350,7 @@
     function connect(url) {
       if (socket) socket.disconnect();
 
+      serverBaseUrl = url.replace(/\/+$/, "");
       socket = io(url, { transports: ["websocket", "polling"] });
 
       socket.on("connect", () => {
@@ -316,36 +367,44 @@
 
       // -- Presets (independent per presetIdx) --
       socket.on("audio:play-preset", (data) => {
-        const a = getOrCreatePresetAudio(data.presetIdx);
+        const entry = getOrCreatePresetAudio(data.presetIdx);
         log(`Preset #${data.presetIdx}: ${data.file}`, "play");
         document.getElementById("presetInfo").textContent = `#${data.presetIdx} ${data.file}`;
         document.getElementById("presetInfo").className = "info active";
-        playBase64(a, data.audioBase64, data.mimeType);
+        entry.audio.src = serverBaseUrl + "/audio/presets/" + data.file;
+        entry.audio.play().catch(e => log("Erreur lecture: " + e.message, "error"));
       });
 
       socket.on("audio:pause-preset", (data) => {
         const idx = data && data.presetIdx;
-        const a = presetAudios.get(idx);
-        if (a) { a.pause(); log(`Preset #${idx} pause`, "stop"); }
+        const entry = presetAudios.get(idx);
+        if (entry) { entry.audio.pause(); log(`Preset #${idx} pause`, "stop"); }
+      });
+
+      socket.on("audio:resume-preset", (data) => {
+        const idx = data && data.presetIdx;
+        const entry = presetAudios.get(idx);
+        if (entry) { entry.audio.play().catch(e => log("Resume error: " + e.message, "error")); log(`Preset #${idx} resume`, "play"); }
       });
 
       socket.on("audio:seek-preset", (data) => {
-        const a = presetAudios.get(data && data.presetIdx);
-        if (a && typeof data.currentTime === "number") a.currentTime = data.currentTime;
+        const entry = presetAudios.get(data && data.presetIdx);
+        if (entry && typeof data.currentTime === "number") entry.audio.currentTime = data.currentTime;
       });
 
       socket.on("audio:stop-preset", (data) => {
         const idx = data && data.presetIdx;
-        const a = presetAudios.get(idx);
-        if (a) { a.pause(); a.currentTime = 0; presetAudios.delete(idx); }
+        cleanupAudioNode(presetAudios.get(idx));
+        presetAudios.delete(idx);
         log("Preset stop", "stop");
       });
 
-      // -- TTS --
+      // -- TTS (stays base64) --
       socket.on("audio:play-tts", (data) => {
         log("TTS recu", "play");
         document.getElementById("ttsInfo").textContent = "Lecture...";
         document.getElementById("ttsInfo").className = "info active";
+        initTtsAudioNode();
         playBase64(ttsAudio, data.audioBase64, data.mimeType);
         applyTtsVolume();
       });
@@ -355,30 +414,32 @@
         document.getElementById("ttsInfo").className = "info";
       });
 
-      // -- Ambient --
+      // -- Ambient (HTTP URL) --
       socket.on("audio:play-ambient", (data) => {
         log(`Ambiance: ${data.soundId}`, "play");
         // Stop existing instance of same soundId
         if (ambientAudios.has(data.soundId)) {
-          ambientAudios.get(data.soundId).pause();
+          cleanupAudioNode(ambientAudios.get(data.soundId));
         }
-        const a = new Audio();
-        a.loop = true;
-        ambientAudios.set(data.soundId, a);
-        playBase64(a, data.audioBase64, data.mimeType);
-        if (data.volume != null) a.volume = data.volume * masterVolume;
-        else applyAmbientVolume();
+        const audio = new Audio();
+        audio.crossOrigin = "anonymous";
+        audio.loop = true;
+        const { source, gainNode } = createAudioNode(audio);
+        const vol = data.volume != null ? data.volume * masterVolume : ambientVolume * masterVolume;
+        gainNode.gain.value = Math.min(1, vol);
+        ambientAudios.set(data.soundId, { audio, source, gainNode });
+        audio.src = serverBaseUrl + "/audio/ambient/" + data.file;
+        audio.play().catch(e => log("Erreur lecture: " + e.message, "error"));
         updateAmbientInfo();
       });
 
       socket.on("audio:stop-ambient", (data) => {
         if (data && data.soundId && ambientAudios.has(data.soundId)) {
-          ambientAudios.get(data.soundId).pause();
+          cleanupAudioNode(ambientAudios.get(data.soundId));
           ambientAudios.delete(data.soundId);
           log(`Ambiance stop: ${data.soundId}`, "stop");
         } else {
-          // Stop all ambient
-          for (const a of ambientAudios.values()) a.pause();
+          for (const entry of ambientAudios.values()) cleanupAudioNode(entry);
           ambientAudios.clear();
           log("Ambiance stop (toutes)", "stop");
         }
@@ -411,11 +472,11 @@
 
       // -- Stop all --
       socket.on("audio:stop-all", () => {
-        for (const a of presetAudios.values()) { a.pause(); a.currentTime = 0; }
+        for (const entry of presetAudios.values()) cleanupAudioNode(entry);
         presetAudios.clear();
         ttsAudio.pause();
         ttsAudio.currentTime = 0;
-        for (const a of ambientAudios.values()) a.pause();
+        for (const entry of ambientAudios.values()) cleanupAudioNode(entry);
         ambientAudios.clear();
         document.getElementById("presetInfo").textContent = "--";
         document.getElementById("presetInfo").className = "info";
