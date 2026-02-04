@@ -87,6 +87,11 @@ const PREDEFINED_GAMES: PredefinedGame[] = [
     displayName: "ARIA",
     expectedInstances: [{ gameId: "aria", name: "ARIA Cat" }],
   },
+  {
+    baseId: "map",
+    displayName: "Map",
+    expectedInstances: [{ gameId: "map", name: "Map" }],
+  },
 ];
 
 function groupConnectedGames(
@@ -140,14 +145,16 @@ function getVariant(
     actionId === "start_screen" ||
     actionId === "add_points" ||
     actionId === "disable_evil" ||
-    actionId === "enable_speaking"
+    actionId === "enable_speaking" ||
+    actionId === "hide_dilemme"
   )
     return "success";
   if (
     actionId === "disable_ai" ||
     actionId === "skip_phase" ||
     actionId === "enable_dilemma" ||
-    actionId === "disable_dilemma"
+    actionId === "disable_dilemma" ||
+    actionId === "show_dilemme"
   )
     return "warning";
   return "primary";
@@ -237,6 +244,22 @@ function getFilteredLabyrintheActions(
       return { ...action, disabled: true };
     }
     return action;
+  });
+}
+
+// Filter Map actions based on game state
+function getFilteredMapActions(
+  actions: GameAction[],
+  mapState: Record<string, unknown> | null
+): GameAction[] {
+  if (!mapState) return actions;
+
+  const isDilemmeShowing = mapState.isDilemmeShowing as boolean;
+
+  return actions.filter((action) => {
+    if (action.id === "hide_dilemme") return isDilemmeShowing;
+    if (action.id === "show_dilemme") return !isDilemmeShowing;
+    return true;
   });
 }
 
@@ -604,7 +627,12 @@ function App() {
                             activeGroup.instances[0].availableActions,
                             activeGroup.instances[0].state
                           )
-                        : activeGroup.instances[0].availableActions;
+                        : activeGroup.baseId === "map"
+                          ? getFilteredMapActions(
+                              activeGroup.instances[0].availableActions,
+                              activeGroup.instances[0].state
+                            )
+                          : activeGroup.instances[0].availableActions;
 
                 if (allSameActions) {
                   const regularActions = actionsToRender.filter(
