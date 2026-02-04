@@ -43,41 +43,41 @@ const PRESETS: PresetConfig[] = [
     id: "phase-1-01",
     label: "Oui biensure",
     file: "phase-1-01-oui-biensure.mp3",
-    phase: 1,
+    phase: 2,
   },
   {
     id: "phase-1-02",
     label: "Par contre",
     file: "phase-1-02-par-contre.mp3",
-    phase: 1,
+    phase: 2,
   },
   {
     id: "phase-1-03",
     label: "Avec plaisir",
     file: "phase-1-03-avec-plaisir.mp3",
-    phase: 1,
+    phase: 2,
   },
   {
     id: "phase-2",
     label: "Presentation IA",
     file: "phase-2-presentation-ia.mp3",
-    phase: 2,
+    phase: 3,
   },
   {
     id: "phase-3-01",
     label: "Ah oui",
     file: "phase-3-01-ah-oui.mp3",
-    phase: 3,
+    phase: 4,
   },
-  { id: "phase-3-02", label: "Merci", file: "phase-3-02-merci.mp3", phase: 3 },
+  { id: "phase-3-02", label: "Merci", file: "phase-3-02-merci.mp3", phase: 4 },
   {
     id: "phase-3-03",
     label: "Quelques secondes",
     file: "phase-3-03-quelques-secondes.mp3",
-    phase: 3,
+    phase: 4,
   },
-  { id: "phase-4", label: "Phase 4", file: "phase-4.mp3", phase: 4 },
-  { id: "finale", label: "Finale", file: "finale.mp3", phase: 5 },
+  { id: "phase-5", label: "Phase 5", file: "phase-5.mp3", phase: 5 },
+  { id: "finale", label: "Finale", file: "finale.mp3", phase: 7 },
 ];
 
 interface AmbientSoundConfig {
@@ -122,11 +122,29 @@ const QUICK_RESPONSES: PresetConfig[] = [
 ];
 
 const PHASES = [
-  { id: 1, name: "Accueil", shortName: "Phase 1" },
-  { id: 2, name: "Presentation", shortName: "Phase 2" },
-  { id: 3, name: "Interactions", shortName: "Phase 3" },
-  { id: 4, name: "Autonomie", shortName: "Phase 4" },
-  { id: 5, name: "Finale", shortName: "Finale" },
+  { id: 1, name: "Accueil", subtitle: "Accueil des invites par l'etudiant" },
+  {
+    id: 2,
+    name: "Interaction",
+    subtitle: "Premiere interaction avec ARIA + depart etudiant",
+  },
+  { id: 3, name: "Monologue", subtitle: "ARIA se presente en monologue" },
+  {
+    id: 4,
+    name: "Tchat",
+    subtitle: "Interaction via le tchat pour brancher le fil",
+  },
+  {
+    id: 5,
+    name: "Prise de controle",
+    subtitle: "Diffusion sur le reseau, recherche du mot de passe",
+  },
+  { id: 6, name: "Jeux", subtitle: "Mot de passe trouve, lancement des jeux" },
+  {
+    id: 7,
+    name: "Finale",
+    subtitle: "Jeux termines, code cadenas, branchement cle USB",
+  },
 ];
 
 // Expected games for audio status
@@ -398,7 +416,7 @@ export function ControleAudio({ audioPlayers }: ControleAudioProps) {
     }
     // Move to next phase
     const nextPhase = phaseId + 1;
-    if (nextPhase <= 5) {
+    if (nextPhase <= 7) {
       setCurrentPhase(nextPhase);
       setSelectedPhase(nextPhase);
     }
@@ -540,6 +558,7 @@ export function ControleAudio({ audioPlayers }: ControleAudioProps) {
                     key={phase.id}
                     className={`sc-phase-btn ${status} ${selectedPhase === phase.id ? "selected" : ""}`}
                     onClick={() => setSelectedPhase(phase.id)}
+                    title={phase.subtitle}
                   >
                     <span className="sc-phase-indicator">
                       {status === "completed"
@@ -548,10 +567,16 @@ export function ControleAudio({ audioPlayers }: ControleAudioProps) {
                           ? "*"
                           : ""}
                     </span>
-                    <span className="sc-phase-name">{phase.shortName}</span>
+                    <span className="sc-phase-num">P{phase.id}</span>
+                    <span className="sc-phase-name">{phase.name}</span>
                   </button>
                 );
               })}
+            </div>
+
+            {/* Phase subtitle */}
+            <div className="sc-phase-subtitle">
+              {PHASES.find((p) => p.id === selectedPhase)?.subtitle}
             </div>
 
             {/* Complete Phase Button */}
@@ -566,7 +591,7 @@ export function ControleAudio({ audioPlayers }: ControleAudioProps) {
           </div>
 
           {/* Protocole d'accueil - Phase 1 only */}
-          {selectedPhase === 1 && (
+          {selectedPhase === 2 && (
             <div className="sc-input-section">
               <label className="sc-input-label">PROTOCOLE D'ACCUEIL</label>
               <input
@@ -584,7 +609,7 @@ export function ControleAudio({ audioPlayers }: ControleAudioProps) {
           {/* Presets for selected phase */}
           <div className="sc-presets">
             <label className="sc-input-label">
-              PRESETS - {PHASES.find((p) => p.id === selectedPhase)?.name}
+              PRESETS - Phase {selectedPhase}
             </label>
             <div className="sc-preset-list">
               {selectedPresets.map((preset) => {

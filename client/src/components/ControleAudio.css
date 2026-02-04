@@ -301,10 +301,24 @@
   min-height: 16px;
 }
 
-.sc-phase-name {
-  font-size: 0.75rem;
-  font-weight: bold;
+.sc-phase-num {
+  font-size: 0.65rem;
+  opacity: 0.5;
   letter-spacing: 1px;
+}
+
+.sc-phase-name {
+  font-size: 0.65rem;
+  font-weight: bold;
+  letter-spacing: 0.5px;
+}
+
+.sc-phase-subtitle {
+  font-size: 0.7rem;
+  color: rgba(0, 255, 255, 0.5);
+  font-style: italic;
+  text-align: center;
+  padding: 4px 0;
 }
 
 .sc-complete-phase {
