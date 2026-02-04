@@ -32,6 +32,7 @@ const expectedGames: ExpectedGame[] = [
   { gameId: "labyrinthe", name: "Labyrinthe - Explorateur", role: "explorer" },
   { gameId: "labyrinthe", name: "Labyrinthe - Protecteur", role: "protector" },
   { gameId: "map", name: "Map" },
+  { gameId: "messagerie", name: "Messagerie" },
 ];
 
 // Key = "gameId:role" or "gameId" if no role

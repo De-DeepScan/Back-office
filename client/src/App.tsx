@@ -92,6 +92,11 @@ const PREDEFINED_GAMES: PredefinedGame[] = [
     displayName: "Map",
     expectedInstances: [{ gameId: "map", name: "Map" }],
   },
+  {
+    baseId: "messagerie",
+    displayName: "Messagerie",
+    expectedInstances: [{ gameId: "messagerie", name: "Messagerie" }],
+  },
 ];
 
 function groupConnectedGames(
