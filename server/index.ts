@@ -1,7 +1,5 @@
 import express from "express";
 import cors from "cors";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { createServer } from "node:http";
 import { networkInterfaces } from "node:os";
 import { Server } from "socket.io";
@@ -12,8 +10,6 @@ import {
 } from "./socket/gamemaster.js";
 import { setupAudioRelay } from "./socket/audio-relay.js";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
 const app = express();
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
@@ -23,12 +19,6 @@ const io = new Server(httpServer, {
 
 app.use(cors());
 app.use(express.json());
-app.use("/sounds", express.static(path.join(__dirname, "sounds")));
-app.use("/presets", express.static(path.join(__dirname, "presets")));
-
-app.get("/player", (_req, res) => {
-  res.sendFile(path.join(__dirname, "player", "index.html"));
-});
 
 // List connected mini-games
 app.get("/api/games", (_req, res) => {
@@ -70,6 +60,5 @@ httpServer.listen(PORT, () => {
   console.log(`[server] Backoffice running on http://localhost:${PORT}`);
   if (ip) {
     console.log(`[server] Réseau local : http://${ip}:${PORT}`);
-    console.log(`[server] Player audio : http://${ip}:${PORT}/player`);
   }
 });
