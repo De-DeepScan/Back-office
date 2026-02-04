@@ -159,8 +159,13 @@
 }
 
 @keyframes pulse-dot {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
 }
 
 /* === EVENT TIMELINE === */
@@ -343,7 +348,8 @@
 }
 
 @keyframes pulse-border {
-  0%, 100% {
+  0%,
+  100% {
     border-color: rgba(245, 158, 11, 0.3);
   }
   50% {
@@ -526,7 +532,8 @@
 }
 
 @keyframes dilemmaWarningPulse {
-  0%, 100% {
+  0%,
+  100% {
     border-color: #f59e0b;
     box-shadow: 0 0 0 rgba(245, 158, 11, 0.4);
   }
@@ -649,9 +656,18 @@
   animation: soundWave 0.4s ease-in-out infinite alternate;
 }
 
-.sound-wave:nth-child(1) { animation-delay: 0s; height: 8px; }
-.sound-wave:nth-child(2) { animation-delay: 0.1s; height: 14px; }
-.sound-wave:nth-child(3) { animation-delay: 0.2s; height: 10px; }
+.sound-wave:nth-child(1) {
+  animation-delay: 0s;
+  height: 8px;
+}
+.sound-wave:nth-child(2) {
+  animation-delay: 0.1s;
+  height: 14px;
+}
+.sound-wave:nth-child(3) {
+  animation-delay: 0.2s;
+  height: 10px;
+}
 
 .aria-cat-avatar.evil .sound-wave {
   background: var(--color-danger);
@@ -713,8 +729,12 @@
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .action-label {
@@ -794,7 +814,8 @@
 }
 
 @keyframes borderPulse {
-  0%, 100% {
+  0%,
+  100% {
     border-color: var(--color-text-muted);
   }
   50% {
@@ -930,7 +951,8 @@
 
 /* === ARIA CAT ANIMATIONS === */
 @keyframes ariaFloat {
-  0%, 100% {
+  0%,
+  100% {
     transform: translateY(0);
   }
   50% {
@@ -939,7 +961,8 @@
 }
 
 @keyframes ariaEvilFloat {
-  0%, 100% {
+  0%,
+  100% {
     transform: translateY(0) scale(1);
   }
   50% {
@@ -948,12 +971,21 @@
 }
 
 @keyframes eyeBlink {
-  0%, 42%, 48%, 100% { transform: scaleY(1); }
-  45% { transform: scaleY(0.1); }
+  0%,
+  42%,
+  48%,
+  100% {
+    transform: scaleY(1);
+  }
+  45% {
+    transform: scaleY(0.1);
+  }
 }
 
 @keyframes whiskerTwitch {
-  0%, 90%, 100% {
+  0%,
+  90%,
+  100% {
     transform: rotate(0deg);
   }
   93% {
@@ -965,21 +997,23 @@
 }
 
 @keyframes evilGlitchSvg {
-  0%, 10%, 100% {
+  0%,
+  10%,
+  100% {
     transform: translate(0, 0) skewX(0deg);
     filter: drop-shadow(0 0 30px rgba(139, 0, 0, 1));
   }
   2% {
     transform: translate(-8px, 3px) skewX(-4deg);
     filter: drop-shadow(8px 0 0 rgba(0, 255, 255, 0.8))
-            drop-shadow(-8px 0 0 rgba(255, 0, 255, 0.8))
-            drop-shadow(0 0 30px rgba(139, 0, 0, 1));
+      drop-shadow(-8px 0 0 rgba(255, 0, 255, 0.8))
+      drop-shadow(0 0 30px rgba(139, 0, 0, 1));
   }
   4% {
     transform: translate(8px, -3px) skewX(4deg);
     filter: drop-shadow(-6px 0 0 rgba(0, 255, 255, 0.6))
-            drop-shadow(6px 0 0 rgba(255, 0, 255, 0.6))
-            drop-shadow(0 0 30px rgba(139, 0, 0, 1));
+      drop-shadow(6px 0 0 rgba(255, 0, 255, 0.6))
+      drop-shadow(0 0 30px rgba(139, 0, 0, 1));
   }
   6% {
     transform: translate(-4px, 0) skewX(-2deg);
@@ -988,14 +1022,18 @@
   8% {
     transform: translate(4px, 2px) skewX(2deg);
     filter: drop-shadow(-4px 0 0 rgba(0, 255, 255, 0.5))
-            drop-shadow(4px 0 0 rgba(255, 0, 255, 0.5))
-            drop-shadow(0 0 30px rgba(139, 0, 0, 1));
+      drop-shadow(4px 0 0 rgba(255, 0, 255, 0.5))
+      drop-shadow(0 0 30px rgba(139, 0, 0, 1));
   }
 }
 
 @keyframes soundWave {
-  0% { transform: scaleY(0.4); }
-  100% { transform: scaleY(1); }
+  0% {
+    transform: scaleY(0.4);
+  }
+  100% {
+    transform: scaleY(1);
+  }
 }
 
 /* === CONFIRMATION DIALOG === */
@@ -1011,8 +1049,12 @@
 }
 
 @keyframes fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .dialog-box {

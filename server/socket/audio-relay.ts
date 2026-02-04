@@ -1,5 +1,5 @@
 import type { Server, Socket } from "socket.io";
-import { readFileSync, existsSync } from "node:fs";
+import { existsSync, statSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -9,7 +9,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const AUDIO_EVENTS_RELAY = [
   "audio:stop-ambient",
   "audio:volume-ambient",
+  "audio:set-ambient-volume",
   "audio:pause-preset",
+  "audio:resume-preset",
   "audio:seek-preset",
   "audio:stop-preset",
   "audio:play-tts",
@@ -52,14 +54,6 @@ export function updateAudioPlayerGameId(
     );
     emitAudioStatus(io);
   }
-}
-
-function readFileAsBase64(filePath: string): string | null {
-  if (!existsSync(filePath)) {
-    console.error(`[audio-relay] File not found: ${filePath}`);
-    return null;
-  }
-  return readFileSync(filePath).toString("base64");
 }
 
 // Emit audio status to backoffice
@@ -136,7 +130,7 @@ export function setupAudioRelay(io: Server) {
       socket.on("disconnect", handleAudioDisconnect);
     });
 
-    // audio:play-ambient - read file and send base64
+    // audio:play-ambient - validate file exists, relay lightweight payload
     socket.on("audio:play-ambient", (payload: PlayAmbientPayload) => {
       const filePath = path.join(
         __dirname,
@@ -145,8 +139,7 @@ export function setupAudioRelay(io: Server) {
         "ambient",
         payload.file
       );
-      const audioBase64 = readFileAsBase64(filePath);
-      if (!audioBase64) {
+      if (!existsSync(filePath)) {
         emitAudioLog(
           io,
           "ambient",
@@ -164,14 +157,10 @@ export function setupAudioRelay(io: Server) {
         `Ambiance "${payload.soundId}" → ${playerCount} lecteur(s)`
       );
 
-      io.to("audio-players").emit("audio:play-ambient", {
-        ...payload,
-        audioBase64,
-        mimeType: "audio/mpeg",
-      });
+      io.to("audio-players").emit("audio:play-ambient", payload);
     });
 
-    // audio:play-preset - read file and send base64
+    // audio:play-preset - validate file exists, relay lightweight payload
     socket.on("audio:play-preset", (payload: PlayPresetPayload) => {
       const filePath = path.join(
         __dirname,
@@ -182,10 +171,8 @@ export function setupAudioRelay(io: Server) {
       );
 
       console.log(`[audio-relay] Preset request: ${payload.file}`);
-      console.log(`[audio-relay] Full path: ${filePath}`);
 
-      const audioBase64 = readFileAsBase64(filePath);
-      if (!audioBase64) {
+      if (!existsSync(filePath)) {
         console.error(
           `[audio-relay] PRESET ERROR: File not found at ${filePath}`
         );
@@ -198,7 +185,7 @@ export function setupAudioRelay(io: Server) {
         return;
       }
 
-      const fileSizeKB = Math.round((audioBase64.length * 0.75) / 1024);
+      const fileSizeKB = Math.round(statSync(filePath).size / 1024);
       const playerCount = audioPlayers.size;
       const playerList = [...audioPlayers.values()]
         .map((p) => p.gameId ?? "unknown")
@@ -215,11 +202,7 @@ export function setupAudioRelay(io: Server) {
         `Preset "${payload.file}" (${fileSizeKB}KB) -> ${playerCount} lecteur(s)`
       );
 
-      io.to("audio-players").emit("audio:play-preset", {
-        ...payload,
-        audioBase64,
-        mimeType: "audio/mpeg",
-      });
+      io.to("audio-players").emit("audio:play-preset", payload);
     });
 
     // Relay other events without modification (with logging for important ones)
@@ -245,6 +228,9 @@ export function setupAudioRelay(io: Server) {
         }
         if (event === "audio:pause-preset") {
           emitAudioLog(io, "preset", "pause", "Pause preset");
+        }
+        if (event === "audio:resume-preset") {
+          emitAudioLog(io, "preset", "play", "Resume preset");
         }
 
         io.to("audio-players").emit(event, payload);

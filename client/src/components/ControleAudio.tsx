@@ -1,6 +1,23 @@
-import { useState, useCallback, useEffect, KeyboardEvent } from "react";
+import {
+  useState,
+  useCallback,
+  useEffect,
+  useRef,
+  KeyboardEvent,
+  PointerEvent as RPointerEvent,
+} from "react";
 import { socket } from "../socket";
-import { MusicWidget } from "./MusicWidget";
+import {
+  Cpu,
+  CircuitBoard,
+  HardDrive,
+  Zap,
+  Sun,
+  Server,
+  Rocket,
+  RotateCcw,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import "./ControleAudio.css";
 
 // Types
@@ -32,41 +49,73 @@ const PRESETS: PresetConfig[] = [
     id: "phase-1-01",
     label: "Oui biensure",
     file: "phase-1-01-oui-biensure.mp3",
-    phase: 1,
+    phase: 2,
   },
   {
     id: "phase-1-02",
     label: "Par contre",
     file: "phase-1-02-par-contre.mp3",
-    phase: 1,
+    phase: 2,
   },
   {
     id: "phase-1-03",
     label: "Avec plaisir",
     file: "phase-1-03-avec-plaisir.mp3",
-    phase: 1,
+    phase: 2,
   },
   {
     id: "phase-2",
     label: "Presentation IA",
     file: "phase-2-presentation-ia.mp3",
-    phase: 2,
+    phase: 3,
   },
   {
     id: "phase-3-01",
     label: "Ah oui",
     file: "phase-3-01-ah-oui.mp3",
-    phase: 3,
+    phase: 4,
   },
-  { id: "phase-3-02", label: "Merci", file: "phase-3-02-merci.mp3", phase: 3 },
+  { id: "phase-3-02", label: "Merci", file: "phase-3-02-merci.mp3", phase: 4 },
   {
     id: "phase-3-03",
     label: "Quelques secondes",
     file: "phase-3-03-quelques-secondes.mp3",
-    phase: 3,
+    phase: 4,
   },
-  { id: "phase-4", label: "Phase 4", file: "phase-4.mp3", phase: 4 },
-  { id: "finale", label: "Finale", file: "finale.mp3", phase: 5 },
+  { id: "phase-5", label: "Phase 5", file: "phase-5.mp3", phase: 5 },
+  { id: "finale", label: "Finale", file: "finale.mp3", phase: 7 },
+];
+
+interface AmbientSoundConfig {
+  id: string;
+  label: string;
+  file: string;
+  icon: LucideIcon;
+}
+
+const AMBIENT_SOUNDS: AmbientSoundConfig[] = [
+  { id: "digital-01", label: "Digital 01", file: "digital-01.mp3", icon: Cpu },
+  {
+    id: "digital-02",
+    label: "Digital 02",
+    file: "digital-02.mp3",
+    icon: CircuitBoard,
+  },
+  {
+    id: "digital-load",
+    label: "Digital Load",
+    file: "digital-load.mp3",
+    icon: HardDrive,
+  },
+  {
+    id: "energy-load",
+    label: "Energy Load",
+    file: "energy-load.mp3",
+    icon: Zap,
+  },
+  { id: "light", label: "Light", file: "light.mp3", icon: Sun },
+  { id: "servers", label: "Servers", file: "servers.mp3", icon: Server },
+  { id: "space", label: "Space", file: "space.mp3", icon: Rocket },
 ];
 
 const QUICK_RESPONSES: PresetConfig[] = [
@@ -79,11 +128,29 @@ const QUICK_RESPONSES: PresetConfig[] = [
 ];
 
 const PHASES = [
-  { id: 1, name: "Accueil", shortName: "Phase 1" },
-  { id: 2, name: "Presentation", shortName: "Phase 2" },
-  { id: 3, name: "Interactions", shortName: "Phase 3" },
-  { id: 4, name: "Autonomie", shortName: "Phase 4" },
-  { id: 5, name: "Finale", shortName: "Finale" },
+  { id: 1, name: "Accueil", subtitle: "Accueil des invites par l'etudiant" },
+  {
+    id: 2,
+    name: "Interaction",
+    subtitle: "Premiere interaction avec ARIA + depart etudiant",
+  },
+  { id: 3, name: "Monologue", subtitle: "ARIA se presente en monologue" },
+  {
+    id: 4,
+    name: "Tchat",
+    subtitle: "Interaction via le tchat pour brancher le fil",
+  },
+  {
+    id: 5,
+    name: "Prise de controle",
+    subtitle: "Diffusion sur le reseau, recherche du mot de passe",
+  },
+  { id: 6, name: "Jeux", subtitle: "Mot de passe trouve, lancement des jeux" },
+  {
+    id: 7,
+    name: "Finale",
+    subtitle: "Jeux termines, code cadenas, branchement cle USB",
+  },
 ];
 
 // Expected games for audio status
@@ -106,6 +173,70 @@ function blobToBase64(blob: Blob): Promise<string> {
   });
 }
 
+function formatTime(seconds: number): string {
+  if (!seconds || !isFinite(seconds)) return "0:00";
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60);
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
+
+function VolumeFader({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  onChange: (v: number) => void;
+}) {
+  const trackRef = useRef<HTMLDivElement>(null);
+  const dragging = useRef(false);
+
+  const volumeFromPointer = (e: { clientY: number }) => {
+    const rect = trackRef.current!.getBoundingClientRect();
+    const ratio =
+      1 - Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
+    onChange(Math.round(ratio * 100) / 100);
+  };
+
+  const onPointerDown = (e: RPointerEvent<HTMLDivElement>) => {
+    dragging.current = true;
+    trackRef.current!.setPointerCapture(e.pointerId);
+    volumeFromPointer(e);
+  };
+
+  const onPointerMove = (e: RPointerEvent<HTMLDivElement>) => {
+    if (dragging.current) volumeFromPointer(e);
+  };
+
+  const onPointerUp = () => {
+    dragging.current = false;
+  };
+
+  return (
+    <div className="sc-fader">
+      <span className="sc-fader-label">{label}</span>
+      <span className="sc-fader-max" onClick={() => onChange(1)}>
+        MAX
+      </span>
+      <div
+        ref={trackRef}
+        className="sc-fader-track"
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
+      >
+        <div className="sc-fader-fill" style={{ height: `${value * 100}%` }} />
+        <span className="sc-fader-value">{Math.round(value * 100)}%</span>
+      </div>
+      <span className="sc-fader-min" onClick={() => onChange(0)}>
+        MIN
+      </span>
+    </div>
+  );
+}
+
 export function ControleAudio({ audioPlayers }: ControleAudioProps) {
   // Phase progression state
   const [currentPhase, setCurrentPhase] = useState(1);
@@ -113,8 +244,8 @@ export function ControleAudio({ audioPlayers }: ControleAudioProps) {
   const [selectedPhase, setSelectedPhase] = useState(1);
 
   // Volume states
-  const [iaVolume, setIaVolume] = useState(1);
-  const [ambientVolume, setAmbientVolume] = useState(1);
+  const [iaVolume, setIaVolume] = useState(0.5);
+  const [ambientVolume, setAmbientVolume] = useState(0.5);
 
   // Input states
   const [participantName, setParticipantName] = useState("");
@@ -124,15 +255,20 @@ export function ControleAudio({ audioPlayers }: ControleAudioProps) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isApiPlaying, setIsApiPlaying] = useState(false);
 
-  // Preset states
+  // Preset states (each preset is independent)
   const [presetStates, setPresetStates] = useState<Record<string, PresetState>>(
     {}
   );
 
+  // Ambient states: soundId -> { active, volume }
+  const [ambientStates, setAmbientStates] = useState<
+    Record<string, { active: boolean; volume: number }>
+  >({});
+
   // Voice sync
   const [selectedVoiceId, setSelectedVoiceId] = useState<string | null>(null);
 
-  // Load saved voice on mount
+  // Load saved voice on mount + sync initial volumes
   useEffect(() => {
     const stored = localStorage.getItem("escape_voices");
     if (stored) {
@@ -142,6 +278,8 @@ export function ControleAudio({ audioPlayers }: ControleAudioProps) {
       );
       if (aria) setSelectedVoiceId(aria.id);
     }
+    socket.emit("audio:volume-ia", { volume: 0.5 });
+    socket.emit("audio:master-volume", { volume: 0.5 });
   }, []);
 
   // Listen for preset progress
@@ -152,19 +290,22 @@ export function ControleAudio({ audioPlayers }: ControleAudioProps) {
       duration: number;
       ended?: boolean;
     }) => {
-      const presetId = `preset-${data.presetIdx}`;
+      const preset = PRESETS[data.presetIdx];
+      if (!preset) return;
+
       if (data.ended) {
         setPresetStates((prev) => {
           const next = { ...prev };
-          delete next[presetId];
+          delete next[preset.id];
           return next;
         });
         return;
       }
+
       setPresetStates((prev) => ({
         ...prev,
-        [presetId]: {
-          playing: prev[presetId]?.playing ?? true,
+        [preset.id]: {
+          playing: prev[preset.id]?.playing ?? true,
           currentTime: data.currentTime,
           duration: data.duration,
         },
@@ -297,19 +438,48 @@ export function ControleAudio({ audioPlayers }: ControleAudioProps) {
           ...prev,
           [presetId]: { ...prev[presetId], playing: false },
         }));
+      } else if (state && state.currentTime > 0) {
+        // Resume paused preset
+        socket.emit("audio:resume-preset", { presetIdx: idx });
+        setPresetStates((prev) => ({
+          ...prev,
+          [presetId]: { ...prev[presetId], playing: true },
+        }));
       } else {
+        // Start new preset
         socket.emit("audio:play-preset", { presetIdx: idx, file });
         setPresetStates((prev) => ({
           ...prev,
           [presetId]: {
             playing: true,
-            currentTime: prev[presetId]?.currentTime ?? 0,
+            currentTime: 0,
             duration: prev[presetId]?.duration ?? 0,
           },
         }));
       }
     },
     [presetStates]
+  );
+
+  // Seek preset to a specific time
+  const seekPreset = useCallback((presetIdx: number, time: number) => {
+    socket.emit("audio:seek-preset", { presetIdx, currentTime: time });
+  }, []);
+
+  // Replay preset from the beginning
+  const replayPreset = useCallback(
+    (presetId: string, file: string, idx: number) => {
+      socket.emit("audio:play-preset", { presetIdx: idx, file });
+      setPresetStates((prev) => ({
+        ...prev,
+        [presetId]: {
+          playing: true,
+          currentTime: 0,
+          duration: prev[presetId]?.duration ?? 0,
+        },
+      }));
+    },
+    []
   );
 
   // Mark phase as complete
@@ -319,7 +489,7 @@ export function ControleAudio({ audioPlayers }: ControleAudioProps) {
     }
     // Move to next phase
     const nextPhase = phaseId + 1;
-    if (nextPhase <= 5) {
+    if (nextPhase <= 7) {
       setCurrentPhase(nextPhase);
       setSelectedPhase(nextPhase);
     }
@@ -336,6 +506,49 @@ export function ControleAudio({ audioPlayers }: ControleAudioProps) {
   const getAudioStatus = (gameId: string) => {
     return audioPlayers.some((p) => p.gameId === gameId);
   };
+
+  // Toggle ambient sound
+  const toggleAmbient = useCallback(
+    (sound: AmbientSoundConfig) => {
+      const state = ambientStates[sound.id];
+      if (state?.active) {
+        socket.emit("audio:stop-ambient", { soundId: sound.id });
+        setAmbientStates((prev) => ({
+          ...prev,
+          [sound.id]: { ...prev[sound.id], active: false },
+        }));
+      } else {
+        const vol = state?.volume ?? 0.5;
+        socket.emit("audio:play-ambient", {
+          soundId: sound.id,
+          file: sound.file,
+          volume: vol,
+        });
+        setAmbientStates((prev) => ({
+          ...prev,
+          [sound.id]: { active: true, volume: vol },
+        }));
+      }
+    },
+    [ambientStates]
+  );
+
+  // Change ambient volume
+  const changeAmbientVolume = useCallback(
+    (sound: AmbientSoundConfig, volume: number) => {
+      setAmbientStates((prev) => ({
+        ...prev,
+        [sound.id]: { active: prev[sound.id]?.active ?? false, volume },
+      }));
+      if (ambientStates[sound.id]?.active) {
+        socket.emit("audio:set-ambient-volume", {
+          soundId: sound.id,
+          volume,
+        });
+      }
+    },
+    [ambientStates]
+  );
 
   // Get presets for selected phase
   const selectedPresets = PRESETS.filter((p) => p.phase === selectedPhase);
@@ -364,41 +577,14 @@ export function ControleAudio({ audioPlayers }: ControleAudioProps) {
       {/* Main Content with Volume Faders */}
       <div className="sc-main-layout">
         {/* Left Volume Fader - Voix IA */}
-        <div className="sc-fader">
-          <span className="sc-fader-label">Voix IA</span>
-          <span className="sc-fader-max">MAX</span>
-          <div className="sc-fader-track">
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.01"
-              value={iaVolume}
-              onChange={(e) => handleIaVolume(parseFloat(e.target.value))}
-              className="sc-fader-input"
-              orient="vertical"
-            />
-          </div>
-          <span className="sc-fader-value">{Math.round(iaVolume * 100)}%</span>
-          <span className="sc-fader-min">MIN</span>
-        </div>
+        <VolumeFader
+          label="Voix IA"
+          value={iaVolume}
+          onChange={handleIaVolume}
+        />
 
         {/* Center Content */}
         <div className="sc-center">
-          {/* Protocole d'accueil */}
-          <div className="sc-input-section">
-            <label className="sc-input-label">PROTOCOLE D'ACCUEIL</label>
-            <input
-              type="text"
-              value={participantName}
-              onChange={(e) => setParticipantName(e.target.value)}
-              onKeyDown={(e) => handleKeyPress(e, handleWelcome)}
-              placeholder="Prenom + Entree"
-              className="sc-input"
-              disabled={isGenerating || isApiPlaying}
-            />
-          </div>
-
           {/* Message manuel */}
           <div className="sc-input-section">
             <label className="sc-input-label">MESSAGE MANUEL</label>
@@ -431,6 +617,7 @@ export function ControleAudio({ audioPlayers }: ControleAudioProps) {
                     key={phase.id}
                     className={`sc-phase-btn ${status} ${selectedPhase === phase.id ? "selected" : ""}`}
                     onClick={() => setSelectedPhase(phase.id)}
+                    title={phase.subtitle}
                   >
                     <span className="sc-phase-indicator">
                       {status === "completed"
@@ -439,10 +626,16 @@ export function ControleAudio({ audioPlayers }: ControleAudioProps) {
                           ? "*"
                           : ""}
                     </span>
-                    <span className="sc-phase-name">{phase.shortName}</span>
+                    <span className="sc-phase-num">P{phase.id}</span>
+                    <span className="sc-phase-name">{phase.name}</span>
                   </button>
                 );
               })}
+            </div>
+
+            {/* Phase subtitle */}
+            <div className="sc-phase-subtitle">
+              {PHASES.find((p) => p.id === selectedPhase)?.subtitle}
             </div>
 
             {/* Complete Phase Button */}
@@ -456,28 +649,84 @@ export function ControleAudio({ audioPlayers }: ControleAudioProps) {
             )}
           </div>
 
+          {/* Protocole d'accueil - Phase 1 only */}
+          {selectedPhase === 2 && (
+            <div className="sc-input-section">
+              <label className="sc-input-label">PROTOCOLE D'ACCUEIL</label>
+              <input
+                type="text"
+                value={participantName}
+                onChange={(e) => setParticipantName(e.target.value)}
+                onKeyDown={(e) => handleKeyPress(e, handleWelcome)}
+                placeholder="Prenom + Entree"
+                className="sc-input"
+                disabled={isGenerating || isApiPlaying}
+              />
+            </div>
+          )}
+
           {/* Presets for selected phase */}
           <div className="sc-presets">
             <label className="sc-input-label">
-              PRESETS - {PHASES.find((p) => p.id === selectedPhase)?.name}
+              PRESETS - Phase {selectedPhase}
             </label>
-            <div className="sc-preset-grid">
-              {selectedPresets.map((preset, idx) => {
-                const presetId = `preset-${idx}`;
-                const state = presetStates[presetId];
+            <div className="sc-preset-list">
+              {selectedPresets.map((preset) => {
+                const globalIdx = PRESETS.indexOf(preset);
+                const state = presetStates[preset.id];
                 const isPlaying = state?.playing ?? false;
+                const currentTime = state?.currentTime ?? 0;
+                const duration = state?.duration ?? 0;
+                const progress =
+                  duration > 0 ? (currentTime / duration) * 100 : 0;
 
                 return (
-                  <button
+                  <div
                     key={preset.id}
-                    className={`sc-preset ${isPlaying ? "playing" : ""} ${state ? "has-state" : ""}`}
-                    onClick={() => togglePreset(presetId, preset.file, idx)}
+                    className={`sc-preset-card ${isPlaying ? "playing" : ""} ${state ? "has-state" : ""}`}
                   >
-                    <span className="sc-preset-icon">
-                      {isPlaying ? "||" : ">"}
-                    </span>
-                    <span className="sc-preset-label">{preset.label}</span>
-                  </button>
+                    <div className="sc-preset-row">
+                      <button
+                        className="sc-preset-play-btn"
+                        onClick={() =>
+                          togglePreset(preset.id, preset.file, globalIdx)
+                        }
+                      >
+                        {isPlaying ? "||" : "\u25B6"}
+                      </button>
+                      <span className="sc-preset-label">{preset.label}</span>
+                      <span className="sc-preset-time">
+                        {formatTime(currentTime)} / {formatTime(duration)}
+                      </span>
+                    </div>
+                    <div className="sc-preset-timeline-row">
+                      <input
+                        type="range"
+                        min="0"
+                        max={duration || 1}
+                        step="0.1"
+                        value={currentTime}
+                        onChange={(e) =>
+                          seekPreset(globalIdx, parseFloat(e.target.value))
+                        }
+                        className="sc-preset-timeline"
+                        style={
+                          {
+                            "--progress": `${progress}%`,
+                          } as React.CSSProperties
+                        }
+                      />
+                      <button
+                        className="sc-preset-replay-btn"
+                        onClick={() =>
+                          replayPreset(preset.id, preset.file, globalIdx)
+                        }
+                        title="Rejouer depuis le debut"
+                      >
+                        <RotateCcw size={13} />
+                      </button>
+                    </div>
+                  </div>
                 );
               })}
             </div>
@@ -509,34 +758,50 @@ export function ControleAudio({ audioPlayers }: ControleAudioProps) {
               })}
             </div>
           </div>
+
+          {/* Ambient Sounds */}
+          <div className="sc-ambient">
+            <label className="sc-input-label">SONS D'AMBIANCE</label>
+            <div className="sc-ambient-grid">
+              {AMBIENT_SOUNDS.map((sound) => {
+                const state = ambientStates[sound.id];
+                const isActive = state?.active ?? false;
+                const volume = state?.volume ?? 0.5;
+                const Icon = sound.icon;
+
+                return (
+                  <div key={sound.id} className="sc-ambient-item">
+                    <button
+                      className={`sc-ambient-circle ${isActive ? "active" : ""}`}
+                      onClick={() => toggleAmbient(sound)}
+                    >
+                      <Icon size={22} />
+                    </button>
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.01"
+                      value={volume}
+                      onChange={(e) =>
+                        changeAmbientVolume(sound, parseFloat(e.target.value))
+                      }
+                      className="sc-ambient-volume"
+                    />
+                    <span className="sc-ambient-label">{sound.label}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </div>
 
         {/* Right Volume Fader - Ambiance */}
-        <div className="sc-fader">
-          <span className="sc-fader-label">Ambiance</span>
-          <span className="sc-fader-max">MAX</span>
-          <div className="sc-fader-track">
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.01"
-              value={ambientVolume}
-              onChange={(e) => handleAmbientVolume(parseFloat(e.target.value))}
-              className="sc-fader-input"
-              orient="vertical"
-            />
-          </div>
-          <span className="sc-fader-value">
-            {Math.round(ambientVolume * 100)}%
-          </span>
-          <span className="sc-fader-min">MIN</span>
-        </div>
-      </div>
-
-      {/* Music Widget - Bottom Right */}
-      <div className="sc-music-widget-container">
-        <MusicWidget />
+        <VolumeFader
+          label="Ambiance"
+          value={ambientVolume}
+          onChange={handleAmbientVolume}
+        />
       </div>
     </div>
   );
