@@ -215,7 +215,8 @@ const PHASES = [
   {
     id: 7,
     name: "Finale",
-    subtitle: "Jeux termines, code cadenas, branchement cle USB",
+    subtitle:
+      "Trouvez le coffre où se trouve la clé USB contenant une version non corrompue d'ARIA.",
   },
 ];
 
