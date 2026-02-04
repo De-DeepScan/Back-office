@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo, type FormEvent, type ChangeEvent } from "react";
+import { useEffect, useState, useCallback, useMemo, type ChangeEvent, type KeyboardEvent } from "react";
 import { toast, Toaster } from "sonner";
 import { Navbar } from "./components/Navbar";
 import { EventTimeline } from "./components/EventTimeline";
@@ -301,6 +301,17 @@ function App() {
     params: {},
   });
   const [customMessage, setCustomMessage] = useState("");
+  const [isMessageSending, setIsMessageSending] = useState(false);
+
+  // Calculate message display duration (matches Messagerie timing)
+  const getMessageDuration = (content: string) => {
+    const initialDelay = 200;
+    const typingTime = content.length * 50;
+    const displayTime = 5000;
+    const fadeOut = 800;
+    const finalDelay = 300;
+    return initialDelay + typingTime + displayTime + fadeOut + finalDelay;
+  };
 
   // Add event to timeline
   const addEvent = useCallback(
@@ -665,6 +676,39 @@ function App() {
 
                   return (
                     <>
+                      {/* Custom message input for Messagerie - placed above action buttons */}
+                      {activeGroup.baseId === "messagerie" && (
+                        <div className="messagerie-input-section">
+                          <label className="messagerie-input-label">MESSAGE PERSONNALISÉ</label>
+                          <input
+                            type="text"
+                            className={`messagerie-input ${isMessageSending ? "disabled" : ""}`}
+                            value={customMessage}
+                            onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                              setCustomMessage(e.target.value)
+                            }
+                            onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => {
+                              if (e.key === "Enter" && customMessage.trim() && !isMessageSending) {
+                                e.preventDefault();
+                                const content = customMessage.trim();
+                                sendToAll(
+                                  activeGroup.instances,
+                                  { id: "send_custom", label: "Envoyer" },
+                                  { content }
+                                );
+                                setCustomMessage("");
+                                setIsMessageSending(true);
+                                setTimeout(() => {
+                                  setIsMessageSending(false);
+                                }, getMessageDuration(content));
+                              }
+                            }}
+                            placeholder={isMessageSending ? "Message en cours..." : "Message + Entrée"}
+                            disabled={isMessageSending}
+                          />
+                        </div>
+                      )}
+
                       <div className="action-grid">
                         {regularActions.map((action) => {
                           const allStatuses = activeGroup.instances.map(
@@ -748,40 +792,6 @@ function App() {
                         </div>
                       )}
 
-                      {/* Custom message input for Messagerie */}
-                      {activeGroup.baseId === "messagerie" && (
-                        <form
-                          className="custom-message-form"
-                          onSubmit={(e: FormEvent) => {
-                            e.preventDefault();
-                            if (customMessage.trim()) {
-                              sendToAll(
-                                activeGroup.instances,
-                                { id: "send_custom", label: "Envoyer" },
-                                { content: customMessage.trim() }
-                              );
-                              setCustomMessage("");
-                            }
-                          }}
-                        >
-                          <input
-                            type="text"
-                            className="custom-message-input"
-                            value={customMessage}
-                            onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                              setCustomMessage(e.target.value)
-                            }
-                            placeholder="Message personnalisé..."
-                          />
-                          <button
-                            type="submit"
-                            className="custom-message-submit"
-                            disabled={!customMessage.trim()}
-                          >
-                            Envoyer
-                          </button>
-                        </form>
-                      )}
                     </>
                   );
                 }
