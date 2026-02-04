@@ -38,6 +38,22 @@ interface AudioPlayerInfo {
 // Track audio players by socketId -> gameId
 const audioPlayers = new Map<string, AudioPlayerInfo>();
 
+// Export function to update gameId after game registration (fixes timing issue)
+export function updateAudioPlayerGameId(
+  io: Server,
+  socketId: string,
+  gameId: string
+): void {
+  const player = audioPlayers.get(socketId);
+  if (player && player.gameId === null) {
+    player.gameId = gameId;
+    console.log(
+      `[audio-relay] Updated audio player gameId: ${socketId} -> ${gameId}`
+    );
+    emitAudioStatus(io);
+  }
+}
+
 function readFileAsBase64(filePath: string): string | null {
   if (!existsSync(filePath)) {
     console.error(`[audio-relay] File not found: ${filePath}`);
@@ -164,23 +180,39 @@ export function setupAudioRelay(io: Server) {
         "presets",
         payload.file
       );
+
+      console.log(`[audio-relay] Preset request: ${payload.file}`);
+      console.log(`[audio-relay] Full path: ${filePath}`);
+
       const audioBase64 = readFileAsBase64(filePath);
       if (!audioBase64) {
+        console.error(
+          `[audio-relay] PRESET ERROR: File not found at ${filePath}`
+        );
         emitAudioLog(
           io,
           "preset",
           "error",
-          `Fichier non trouvé: ${payload.file}`
+          `Fichier non trouve: ${payload.file} (path: ${filePath})`
         );
         return;
       }
 
+      const fileSizeKB = Math.round((audioBase64.length * 0.75) / 1024);
       const playerCount = audioPlayers.size;
+      const playerList = [...audioPlayers.values()]
+        .map((p) => p.gameId ?? "unknown")
+        .join(", ");
+
+      console.log(
+        `[audio-relay] Preset OK: ${payload.file} (${fileSizeKB}KB) -> ${playerCount} player(s): [${playerList}]`
+      );
+
       emitAudioLog(
         io,
         "preset",
         "play",
-        `Preset "${payload.file}" → ${playerCount} lecteur(s)`
+        `Preset "${payload.file}" (${fileSizeKB}KB) -> ${playerCount} lecteur(s)`
       );
 
       io.to("audio-players").emit("audio:play-preset", {

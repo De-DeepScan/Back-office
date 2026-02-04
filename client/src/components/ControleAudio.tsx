@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, KeyboardEvent } from "react";
 import { socket } from "../socket";
-import "./SoundControl.css";
+import { MusicWidget } from "./MusicWidget";
+import "./ControleAudio.css";
 
 // Types
 interface AudioPlayerStatus {
@@ -21,7 +22,7 @@ interface PresetState {
   duration: number;
 }
 
-interface SoundControlProps {
+interface ControleAudioProps {
   audioPlayers: AudioPlayerStatus[];
 }
 
@@ -78,11 +79,11 @@ const QUICK_RESPONSES: PresetConfig[] = [
 ];
 
 const PHASES = [
-  { id: 1, name: "Accueil", shortName: "P1" },
-  { id: 2, name: "Presentation", shortName: "P2" },
-  { id: 3, name: "Interactions", shortName: "P3" },
-  { id: 4, name: "Autonomie", shortName: "P4" },
-  { id: 5, name: "Finale", shortName: "FIN" },
+  { id: 1, name: "Accueil", shortName: "Phase 1" },
+  { id: 2, name: "Presentation", shortName: "Phase 2" },
+  { id: 3, name: "Interactions", shortName: "Phase 3" },
+  { id: 4, name: "Autonomie", shortName: "Phase 4" },
+  { id: 5, name: "Finale", shortName: "Finale" },
 ];
 
 // Expected games for audio status
@@ -105,7 +106,7 @@ function blobToBase64(blob: Blob): Promise<string> {
   });
 }
 
-export function SoundControl({ audioPlayers }: SoundControlProps) {
+export function ControleAudio({ audioPlayers }: ControleAudioProps) {
   // Phase progression state
   const [currentPhase, setCurrentPhase] = useState(1);
   const [completedPhases, setCompletedPhases] = useState<number[]>([]);
@@ -340,7 +341,7 @@ export function SoundControl({ audioPlayers }: SoundControlProps) {
   const selectedPresets = PRESETS.filter((p) => p.phase === selectedPhase);
 
   return (
-    <div className="sound-control">
+    <div className="sound-control controle-audio-container">
       {/* Audio Status Header */}
       <div className="sc-audio-status">
         <span className="sc-status-label">STATUS AUDIO</span>
@@ -362,9 +363,10 @@ export function SoundControl({ audioPlayers }: SoundControlProps) {
 
       {/* Main Content with Volume Faders */}
       <div className="sc-main-layout">
-        {/* Left Volume Fader - IA */}
+        {/* Left Volume Fader - Voix IA */}
         <div className="sc-fader">
-          <span className="sc-fader-label">IA</span>
+          <span className="sc-fader-label">Voix IA</span>
+          <span className="sc-fader-max">MAX</span>
           <div className="sc-fader-track">
             <input
               type="range"
@@ -378,6 +380,7 @@ export function SoundControl({ audioPlayers }: SoundControlProps) {
             />
           </div>
           <span className="sc-fader-value">{Math.round(iaVolume * 100)}%</span>
+          <span className="sc-fader-min">MIN</span>
         </div>
 
         {/* Center Content */}
@@ -431,9 +434,9 @@ export function SoundControl({ audioPlayers }: SoundControlProps) {
                   >
                     <span className="sc-phase-indicator">
                       {status === "completed"
-                        ? "✓"
+                        ? "OK"
                         : status === "current"
-                          ? "●"
+                          ? "*"
                           : ""}
                     </span>
                     <span className="sc-phase-name">{phase.shortName}</span>
@@ -471,7 +474,7 @@ export function SoundControl({ audioPlayers }: SoundControlProps) {
                     onClick={() => togglePreset(presetId, preset.file, idx)}
                   >
                     <span className="sc-preset-icon">
-                      {isPlaying ? "⏸" : state ? "▶" : "●"}
+                      {isPlaying ? "||" : ">"}
                     </span>
                     <span className="sc-preset-label">{preset.label}</span>
                   </button>
@@ -482,6 +485,7 @@ export function SoundControl({ audioPlayers }: SoundControlProps) {
 
           {/* Quick Responses */}
           <div className="sc-quick">
+            <label className="sc-input-label">REPONSES RAPIDES</label>
             <div className="sc-preset-grid">
               {QUICK_RESPONSES.map((preset, idx) => {
                 const presetId = `quick-${idx}`;
@@ -497,7 +501,7 @@ export function SoundControl({ audioPlayers }: SoundControlProps) {
                     }
                   >
                     <span className="sc-preset-icon">
-                      {isPlaying ? "⏸" : "🎲"}
+                      {isPlaying ? "||" : ">"}
                     </span>
                     <span className="sc-preset-label">{preset.label}</span>
                   </button>
@@ -509,7 +513,8 @@ export function SoundControl({ audioPlayers }: SoundControlProps) {
 
         {/* Right Volume Fader - Ambiance */}
         <div className="sc-fader">
-          <span className="sc-fader-label">AMB</span>
+          <span className="sc-fader-label">Ambiance</span>
+          <span className="sc-fader-max">MAX</span>
           <div className="sc-fader-track">
             <input
               type="range"
@@ -525,7 +530,13 @@ export function SoundControl({ audioPlayers }: SoundControlProps) {
           <span className="sc-fader-value">
             {Math.round(ambientVolume * 100)}%
           </span>
+          <span className="sc-fader-min">MIN</span>
         </div>
+      </div>
+
+      {/* Music Widget - Bottom Right */}
+      <div className="sc-music-widget-container">
+        <MusicWidget />
       </div>
     </div>
   );

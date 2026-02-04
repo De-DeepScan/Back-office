@@ -11,7 +11,6 @@ interface NavbarProps {
   connected: boolean;
   activeTab: string | null;
   onTabChange: (baseId: string) => void;
-  audioPlayerCount?: number;
 }
 
 export function Navbar({
@@ -19,7 +18,6 @@ export function Navbar({
   connected,
   activeTab,
   onTabChange,
-  audioPlayerCount,
 }: NavbarProps) {
   return (
     <nav className="navbar">
@@ -138,18 +136,13 @@ export function Navbar({
           );
         })}
 
-        {/* Sound Control Tab */}
+        {/* Controle Audio Tab */}
         <button
           className={`game-status-block sound-tab ${activeTab === "sound_control" ? "active" : ""}`}
           onClick={() => onTabChange("sound_control")}
         >
           <span className="status-dot sound-dot" />
-          <span className="game-name">Sound Control</span>
-          {audioPlayerCount !== undefined && (
-            <span className="game-count">
-              {audioPlayerCount} player{audioPlayerCount !== 1 ? "s" : ""}
-            </span>
-          )}
+          <span className="game-name">Controle Audio</span>
         </button>
       </div>
 

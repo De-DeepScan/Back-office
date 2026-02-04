@@ -8,8 +8,7 @@ import { ActionButton } from "./components/ActionButton";
 import { ConfirmDialog } from "./components/ConfirmDialog";
 import type { AriaState } from "./types/aria";
 import "./App.css";
-import { SoundControl } from "./components/SoundControl";
-import { SpotifyWidget } from "./components/SpotifyWidget";
+import { ControleAudio } from "./components/ControleAudio";
 import { socket, API_URL } from "./socket";
 
 type ActionStatus = "idle" | "loading" | "success" | "error";
@@ -543,13 +542,12 @@ function App() {
         connected={connected}
         activeTab={activeTab}
         onTabChange={setActiveTab}
-        audioPlayerCount={audioPlayers.length}
       />
       <EventTimeline events={events} />
 
       <main className="controls">
         {activeTab === "sound_control" ? (
-          <SoundControl audioPlayers={audioPlayers} />
+          <ControleAudio audioPlayers={audioPlayers} />
         ) : activeGroup ? (
           <div className="game-panel">
             {/* Instance cards */}
@@ -814,9 +812,6 @@ function App() {
           },
         }}
       />
-
-      {/* Spotify Widget - Global floating button */}
-      <SpotifyWidget />
     </div>
   );
 }

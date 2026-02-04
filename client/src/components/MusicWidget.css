@@ -1,0 +1,78 @@
+/* Music Widget - In-zone Button */
+
+.music-widget {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: rgba(0, 0, 0, 0.8);
+  border: 2px solid rgba(0, 255, 255, 0.5);
+  border-radius: 50%;
+
+  color: var(--color-primary, #00ffff);
+  cursor: pointer;
+
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.music-widget:hover {
+  transform: scale(1.1);
+  border-color: var(--color-primary, #00ffff);
+  box-shadow: 0 0 20px rgba(0, 255, 255, 0.4);
+}
+
+.music-widget:active {
+  transform: scale(1.05);
+}
+
+.music-widget.playing {
+  background: rgba(0, 255, 255, 0.15);
+}
+
+.music-widget-bg {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.music-widget-bg svg {
+  width: 32px;
+  height: 32px;
+}
+
+.music-widget-action {
+  position: relative;
+  z-index: 1;
+  width: 20px;
+  height: 20px;
+}
+
+/* Pulsing animation when playing */
+.music-widget.playing::before {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border: 2px solid rgba(0, 255, 255, 0.3);
+  border-radius: 50%;
+  animation: music-pulse 2s ease-in-out infinite;
+}
+
+@keyframes music-pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.15);
+    opacity: 0;
+  }
+}
