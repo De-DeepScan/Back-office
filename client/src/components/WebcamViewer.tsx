@@ -16,7 +16,11 @@ const CAMERAS: CameraConfig[] = [
   { cameraId: "sidequest", label: "Computer Sidequest" },
 ];
 
-function CameraFeed({ cameraId, label }: CameraConfig) {
+function CameraFeed({
+  cameraId,
+  label,
+  online,
+}: CameraConfig & { online: boolean }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const [status, setStatus] = useState<"waiting" | "connecting" | "connected">(
@@ -126,7 +130,12 @@ function CameraFeed({ cameraId, label }: CameraConfig) {
 
   return (
     <div className="camera-feed">
-      <div className="camera-label">{label}</div>
+      <div className="camera-label">
+        <span
+          className={`camera-status-dot ${online ? "online" : "offline"}`}
+        />
+        {label}
+      </div>
       <div className="camera-viewport">
         {status !== "connected" && (
           <div className="webcam-waiting">
@@ -135,7 +144,9 @@ function CameraFeed({ cameraId, label }: CameraConfig) {
             </div>
             <p className="webcam-waiting-text">
               {status === "waiting"
-                ? "En attente de connexion..."
+                ? online
+                  ? "En attente du flux..."
+                  : "Camera hors ligne"
                 : "Connexion en cours..."}
             </p>
           </div>
@@ -153,10 +164,29 @@ function CameraFeed({ cameraId, label }: CameraConfig) {
 }
 
 export function WebcamViewer() {
+  const [camerasStatus, setCamerasStatus] = useState<Record<string, boolean>>(
+    {}
+  );
+
+  useEffect(() => {
+    function handleStatus(data: Record<string, boolean>) {
+      setCamerasStatus(data);
+    }
+
+    socket.on("webrtc:cameras-status", handleStatus);
+    return () => {
+      socket.off("webrtc:cameras-status", handleStatus);
+    };
+  }, []);
+
   return (
     <div className="webcam-grid">
       {CAMERAS.map((cam) => (
-        <CameraFeed key={cam.cameraId} {...cam} />
+        <CameraFeed
+          key={cam.cameraId}
+          {...cam}
+          online={camerasStatus[cam.cameraId] ?? false}
+        />
       ))}
     </div>
   );

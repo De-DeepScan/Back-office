@@ -43,6 +43,24 @@ const disconnectTimeouts = new Map<string, NodeJS.Timeout>();
 // Reconnection grace period in ms
 const RECONNECT_GRACE_PERIOD = 10000;
 
+// Camera ping tracking: cameraId -> { socketId, lastPing }
+const connectedCameras = new Map<
+  string,
+  { socketId: string; lastPing: number }
+>();
+
+// Consider a camera offline if no ping for 45s (1.5x the 30s interval)
+const CAMERA_TIMEOUT = 45_000;
+
+function getCamerasStatus(): Record<string, boolean> {
+  const now = Date.now();
+  const status: Record<string, boolean> = {};
+  for (const [cameraId, info] of connectedCameras) {
+    status[cameraId] = now - info.lastPing < CAMERA_TIMEOUT;
+  }
+  return status;
+}
+
 function gameKey(gameId: string, role?: string): string {
   return role ? `${gameId}:${role}` : gameId;
 }
@@ -258,6 +276,15 @@ export function setupGamemaster(io: Server): void {
       socket.broadcast.emit("game-message", message);
     });
 
+    // WebRTC camera ping tracking
+    socket.on("webrtc:camera-ping", (data: { cameraId: string }) => {
+      connectedCameras.set(data.cameraId, {
+        socketId: socket.id,
+        lastPing: Date.now(),
+      });
+      io.emit("webrtc:cameras-status", getCamerasStatus());
+    });
+
     // WebRTC signaling relay for webcam streaming (cameraId identifies each stream)
     socket.on("webrtc:request-offer", (data: { cameraId: string }) => {
       socket.broadcast.emit("webrtc:request-offer", data);
@@ -279,6 +306,14 @@ export function setupGamemaster(io: Server): void {
     );
 
     socket.on("disconnect", (reason) => {
+      // Remove cameras owned by this socket
+      for (const [cameraId, info] of connectedCameras) {
+        if (info.socketId === socket.id) {
+          connectedCameras.delete(cameraId);
+        }
+      }
+      io.emit("webrtc:cameras-status", getCamerasStatus());
+
       const key = socket.data.gameKey as string | undefined;
       if (!key) return;
 
