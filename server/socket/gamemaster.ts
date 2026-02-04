@@ -1,4 +1,5 @@
 import type { Server, Socket } from "socket.io";
+import { updateAudioPlayerGameId } from "./audio-relay.js";
 
 interface GameAction {
   id: string;
@@ -98,6 +99,9 @@ export function setupGamemaster(io: Server): void {
 
         // Store key on socket for later lookup
         socket.data.gameKey = key;
+
+        // Update audio player gameId if this socket is already registered as audio player
+        updateAudioPlayerGameId(io, socket.id, key);
 
         // Cancel any pending removal for this game
         const existingTimeout = disconnectTimeouts.get(key);
@@ -219,10 +223,7 @@ export function setupGamemaster(io: Server): void {
 
         // Relay Sidequest score to Labyrinth
         if (data.name === "point_earned" && key === "sidequest") {
-          const payload = {
-            points: data.data?.points,
-            totalPoints: data.data?.totalPoints,
-          };
+          const payload = { points: data.data?.points };
           sendCommand(io, "labyrinthe:explorer", "sidequest_score", payload);
           sendCommand(io, "labyrinthe:protector", "sidequest_score", payload);
           console.log("[relay] Sidequest score → Labyrinth:", payload);
