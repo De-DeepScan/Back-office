@@ -119,8 +119,7 @@ const MESSAGERIE_PRESETS: { category: string; messages: string[] }[] = [
   {
     category: "Branchement prise",
     messages: [
-      "Attendez les gars, je crois que j'ai besoin que vous branchiez un câble pour moi.",
-      "Il devrait se trouver sous la télé, là où se trouve aria.",
+      "Attendez, je crois que j'ai besoin que vous branchiez un câble pour moi, il devrait se trouver sous la télé, là où se trouve aria.",
       "Pouvez-vous le brancher dans la prise murale juste derrière la télé ?",
     ],
   },
@@ -129,34 +128,26 @@ const MESSAGERIE_PRESETS: { category: string; messages: string[] }[] = [
     messages: [
       "Je ne comprends pas, ARIA prend le contrôle.",
       "Les portes sont verrouillées, je ne peux pas entrer.",
-      "Vous devrez réinstaller une version plus ancienne d'ARIA.",
-    ],
-  },
-  {
-    category: "Post-its (Mot de passe)",
-    messages: [
-      "Le mot de passe est écrit quelque part.",
-      "Un petit papier jaune détient la clé.",
+      "Vous devrez trouver une clé usb a branché sur un des pc.",
     ],
   },
   {
     category: "Carnet sur bureau",
     messages: [
-      "Le carnet contient un indice vital.",
       "Vous devez trouver le mot de passe pour accéder aux neurones d'ARIA, je me souviens avoir laissé un indice au code dans le carnet.",
+      "Le carnet contient un indice vital.",
     ],
   },
   {
     category: "Explication des stations",
     messages: [
-      "J'ai besoin de 3 personnes pour être aux stations où se trouvent les écrans. À la station située à droite d'ARIA, vous devez terminer ces mini-hack le plus rapidement possible. À la station en face de l'ARIA, vous devez débloquer les neurones en complétant les labyrinthes. À gauche d'ARIA, vous devez débloquer des codes pour empêcher ARIA de protéger ses neurones. Je vous souhaite bonne chance à tous, pour le bien de l'humanité.",
+      "J'ai besoin de 3 personnes aux stations. À droite d'ARIA, terminez les mini-hacks. En face, complétez les labyrinthes pour débloquer les neurones. À gauche, déverrouillez les codes de protection. Bonne chance à tous.",
     ],
   },
   {
     category: "Écrans",
     messages: [
       "L'écran s'allume, regarde bien !",
-      "Les instructions changent, dépêche-toi.",
       "Regardez ARIA, il y a un dilemme à résoudre !",
     ],
   },
@@ -170,12 +161,12 @@ const MESSAGERIE_PRESETS: { category: string; messages: string[] }[] = [
   {
     category: "Sac",
     messages: [
-      "Où est mon sac? Il y a quelque chose d'important à l'intérieur ",
+      "essayer de trouver un sac il devrait y avoir la clé usb dedans",
     ],
   },
   {
     category: "Indices MDP 209",
-    messages: ["Quelle heure est-il ?", "Où sont nos fichiers de données ?"],
+    messages: ["Vous avez regardées nos fichiers de données ?"],
   },
 ];
 
