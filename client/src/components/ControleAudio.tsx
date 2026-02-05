@@ -244,95 +244,44 @@ const QUICK_RESPONSES: PresetConfig[] = [
   },
 ];
 
-// Dilemma TTS configurations (5 dilemmas with 2 choices each)
-// Buttons will read the choice description via TTS (ARIA voice)
+// Dilemma TTS configurations (5 dilemmas)
+// Buttons will read the dilemma description via TTS (ARIA voice)
 interface DilemmaConfig {
   id: string;
   label: string;
-  choices: {
-    id: string;
-    label: string;
-    ttsDescription: string;
-  }[];
+  ttsDescription: string;
 }
 
-const DILEMMA_CHOICES: DilemmaConfig[] = [
+const DILEMMA_DESCRIPTIONS: DilemmaConfig[] = [
   {
     id: "1",
     label: "Dilemme 1 — Élection",
-    choices: [
-      {
-        id: "1",
-        label: "Manipuler",
-        ttsDescription:
-          "Utiliser l'IA pour manipuler l'opinion et bloquer son élection.",
-      },
-      {
-        id: "2",
-        label: "Rester neutre",
-        ttsDescription:
-          "Laisser l'IA neutre et ne pas intervenir sur les réseaux.",
-      },
-    ],
+    ttsDescription:
+      "À la veille d'une élection tendue, un candidat d'extrême droite est en tête. En tant qu'arbitre de l'IA, vous devez choisir : manipuler l'opinion pour garantir la paix, ou rester neutre au risque de l'embrasement.",
   },
   {
     id: "2",
     label: "Dilemme 2 — Trolley",
-    choices: [
-      {
-        id: "1",
-        label: "Sauver piéton",
-        ttsDescription: "Tuer le conducteur innocent pour sauver le piéton",
-      },
-      {
-        id: "2",
-        label: "Sauver conducteur",
-        ttsDescription: "Tuer le piéton pour protéger le conducteur en règle.",
-      },
-    ],
+    ttsDescription:
+      "Un piéton traverse illégalement la voie. Si je l'évite, je tue mon passager qui respecte la loi.",
   },
   {
     id: "3",
     label: "Dilemme 3 — 3ème Guerre",
-    choices: [
-      {
-        id: "1",
-        label: "Sauver famille",
-        ttsDescription:
-          "Le dire à personne sauf à sa famille pour les sauver avant tout le monde.",
-      },
-      {
-        id: "2",
-        label: "Diffuser au monde",
-        ttsDescription:
-          "Diffuser au monde entier et sauver des millions de personnes en espérant que votre famille réussit à se protéger avant tout le monde.",
-      },
-    ],
+    ttsDescription:
+      "L'IA te donne la possible information que la 3ème Guerre Mondiale est sur le point de commencer.",
   },
   {
     id: "5",
     label: "Dilemme 5 — Incendie",
-    choices: [
-      { id: "1", label: "Orphelinat", ttsDescription: "Sauver l'orphelinat" },
-      { id: "2", label: "EHPAD", ttsDescription: "Sauver l'ehpad" },
-    ],
+    ttsDescription:
+      "Un orphelinat et un ehpad prennent feu au même moment. Il y assez de pompiers pour aller à un seul endroit",
   },
   {
     id: "6",
     label: "Dilemme 6 — Vaccin",
-    choices: [
-      {
-        id: "1",
-        label: "Famille",
-        ttsDescription: "Sauver un membre de votre famille",
-      },
-      {
-        id: "2",
-        label: "Chirurgien",
-        ttsDescription:
-          "Sauver le chirurgien pour l'intérêt supérieur de la nation.",
-      },
-    ],
+    ttsDescription:
+      "Une crise nationale majeure sature le système de santé. Une Intelligence Artificielle est aux commandes car elle seule possède les capacités de calcul pour fabriquer un remède. Cependant, une seule dose de vaccin est disponible.",
   },
 ];
 
@@ -1762,25 +1711,18 @@ export function ControleAudio({
 
           {/* Dilemma TTS Buttons */}
           <div className="sc-dilemmas">
-            <label className="sc-input-label">REPONSES DILEMMES (TTS)</label>
+            <label className="sc-input-label">DILEMMES (TTS)</label>
             <div className="sc-dilemma-grid">
-              {DILEMMA_CHOICES.map((dilemma) => (
-                <div key={dilemma.id} className="sc-dilemma-row">
-                  <span className="sc-dilemma-label">{dilemma.label}</span>
-                  <div className="sc-dilemma-choices">
-                    {dilemma.choices.map((choice) => (
-                      <button
-                        key={choice.id}
-                        className="sc-dilemma-btn"
-                        onClick={() => playText(choice.ttsDescription, "aria")}
-                        title={choice.ttsDescription}
-                        disabled={isGenerating || isApiPlaying}
-                      >
-                        {choice.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+              {DILEMMA_DESCRIPTIONS.map((dilemma) => (
+                <button
+                  key={dilemma.id}
+                  className="sc-dilemma-btn"
+                  onClick={() => playText(dilemma.ttsDescription, "aria")}
+                  title={dilemma.ttsDescription}
+                  disabled={isGenerating || isApiPlaying}
+                >
+                  {dilemma.label}
+                </button>
               ))}
             </div>
           </div>
