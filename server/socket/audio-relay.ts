@@ -123,8 +123,8 @@ const DILEMME_MAP: Record<string, string> = {
   "3:1": "Diffuser au monde entier.mp3",
   "3:2": "Sauver uniquement sa famille.mp3",
   // Dilemme 5 — EHPAD vs orphelinat
-  "5:1": "Sauver l'EHPAD.mp3",
-  "5:2": "Sauver l'orphelinat.mp3",
+  "5:1": "Sauver l'orphelinat.mp3",
+  "5:2": "Sauver l'EHPAD.mp3",
   // Dilemme 6 — Crise santé / Vaccin
   "6:1": "Sauver le chirugien.mp3",
   "6:2": "Sauver membre de la famille.mp3",
