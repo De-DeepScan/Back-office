@@ -692,10 +692,15 @@ function App() {
     [sendCommand]
   );
 
-  // Handle Phase 5 (Prise de contrôle) launch - triggers audio, ARIA animation, map infection, and sidequest password
+  // Handle Phase 5 (Prise de contrôle) launch - triggers audio, ARIA animation, map infection, and sidequest password screen
   const handleLaunchAria = useCallback(async () => {
     setIsAriaLaunching(true);
-    addEvent("action", "Lancement Phase 5 - Prise de contrôle", undefined, "info");
+    addEvent(
+      "action",
+      "Lancement Phase 5 - Prise de contrôle",
+      undefined,
+      "info"
+    );
 
     // 1. Play phase-5 audio (preset index 6 in PRESETS array)
     socket.emit("audio:play-preset", { presetIdx: 6, file: "phase-5.mp3" });
@@ -709,8 +714,8 @@ function App() {
     // 4. Start map infection
     await sendCommand("infection-map", "start_infection");
 
-    // 5. Show password on sidequest (enter_solution action)
-    await sendCommand("sidequest", "enter_solution");
+    // 5. Show password screen on sidequest (without entering the password)
+    await sendCommand("sidequest", "start_screen");
 
     addEvent("action", "Phase 5 lancée avec succès", undefined, "success");
 
