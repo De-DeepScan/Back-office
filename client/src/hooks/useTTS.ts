@@ -137,8 +137,8 @@ export function useTTS(voiceName: string = "aria") {
           const blob = await res.blob();
           const audioBase64 = await blobToBase64(blob);
 
-          // Duck ambient sounds by 20% before playing TTS
-          socket.emit("audio:duck-ambient", { factor: 0.8 });
+          // Mute ambient sounds completely while TTS plays
+          socket.emit("audio:duck-ambient", { factor: 0 });
 
           socket.emit("audio:play-tts", {
             audioBase64,
