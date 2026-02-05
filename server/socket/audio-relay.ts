@@ -352,6 +352,20 @@ export function setupAudioRelay(io: Server) {
           emitAudioLog(io, "ambient", "stop", `Arrêt ambiance "${p.soundId}"`);
         }
 
+        // Debug logging for duck events
+        if (
+          event === "audio:duck-ambient" ||
+          event === "audio:unduck-ambient"
+        ) {
+          const playerCount = audioPlayers.size;
+          const playerList = [...audioPlayers.values()]
+            .map((p) => p.gameId ?? "unknown")
+            .join(", ");
+          console.log(
+            `[audio-relay] ${event} received from ${socket.id}, relaying to ${playerCount} audio-players: [${playerList}]`
+          );
+        }
+
         io.to("audio-players").emit(event, payload);
       });
     }

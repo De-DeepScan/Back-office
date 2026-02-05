@@ -138,6 +138,7 @@ export function useTTS(voiceName: string = "aria") {
           const audioBase64 = await blobToBase64(blob);
 
           // Mute ambient sounds completely while TTS plays
+          console.log("[useTTS] Emitting audio:duck-ambient with factor 0");
           socket.emit("audio:duck-ambient", { factor: 0 });
 
           socket.emit("audio:play-tts", {
@@ -148,6 +149,11 @@ export function useTTS(voiceName: string = "aria") {
 
           // Restore ambient volume after estimated duration
           setTimeout(() => {
+            console.log(
+              "[useTTS] Emitting audio:unduck-ambient after",
+              estimatedDuration,
+              "ms"
+            );
             socket.emit("audio:unduck-ambient");
             setIsPlaying(false);
           }, estimatedDuration);
