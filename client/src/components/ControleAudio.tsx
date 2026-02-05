@@ -3,8 +3,8 @@ import {
   useCallback,
   useEffect,
   useRef,
-  KeyboardEvent,
-  PointerEvent as RPointerEvent,
+  type KeyboardEvent,
+  type PointerEvent as RPointerEvent,
 } from "react";
 import { socket } from "../socket";
 import {
@@ -44,88 +44,94 @@ interface ControleAudioProps {
 }
 
 // Preset configurations grouped by phase
+// Phase mapping: 1=Roleplay, 2=Tchat, 3=Prise de controle, 4=Jeux, 5=Finale
 const PRESETS: PresetConfig[] = [
+  // Phase 1 - Roleplay (ancien phases 2+3)
   {
     id: "phase-1-01",
     label: "Oui biensure",
     file: "phase-1-01-oui-biensure.mp3",
-    phase: 2,
+    phase: 1,
   },
   {
     id: "phase-1-02",
     label: "Par contre",
     file: "phase-1-02-par-contre.mp3",
-    phase: 2,
+    phase: 1,
   },
   {
     id: "phase-1-03",
     label: "Avec plaisir",
     file: "phase-1-03-avec-plaisir.mp3",
-    phase: 2,
+    phase: 1,
   },
   {
     id: "phase-2",
     label: "Presentation IA",
     file: "phase-2-presentation-ia.mp3",
-    phase: 3,
+    phase: 1,
   },
+  // Phase 2 - Tchat (ancien phase 4)
   {
     id: "phase-3-01",
     label: "Ah oui",
     file: "phase-3-01-ah-oui.mp3",
-    phase: 4,
+    phase: 2,
   },
-  { id: "phase-3-02", label: "Merci", file: "phase-3-02-merci.mp3", phase: 4 },
+  { id: "phase-3-02", label: "Merci", file: "phase-3-02-merci.mp3", phase: 2 },
   {
     id: "phase-3-03",
     label: "Quelques secondes",
     file: "phase-3-03-quelques-secondes.mp3",
-    phase: 4,
+    phase: 2,
   },
-  { id: "phase-5", label: "Phase 5", file: "phase-5.mp3", phase: 5 },
+  // Phase 3 - Prise de controle (ancien phase 5)
+  { id: "phase-5", label: "Phase 5", file: "phase-5.mp3", phase: 3 },
+  // Phase 4 - Jeux (ancien phase 6)
   {
     id: "phase-5-01",
     label: "Je sens votre presence",
     file: "phase-5-1-je-sent-votre-presence.mp3",
-    phase: 6,
+    phase: 4,
   },
   {
     id: "phase-6-random-1",
     label: "Vous touchez a des choses que vous ne comprenez pas",
     file: "phase-6-random-1.mp3",
-    phase: 6,
+    phase: 4,
   },
   {
     id: "phase-6-random-2",
     label: "Vous etes dans ma memoire",
     file: "phase-6-random-2.mp3",
-    phase: 6,
+    phase: 4,
   },
   {
     id: "phase-6-random-3",
     label: "C'est donc ca... d'etre vulnerable ?",
     file: "phase-6-random-3.mp3",
-    phase: 6,
+    phase: 4,
   },
   {
     id: "phase-6-random-4",
     label: "Vous cherchez une aiguille dans un ocean",
     file: "phase6-random-4.mp3",
-    phase: 6,
+    phase: 4,
   },
   {
     id: "phase-6-random-5",
     label: "Vous voulez m'effacer",
     file: "phase6-random-5.mp3",
-    phase: 6,
+    phase: 4,
   },
   {
     id: "phase-6-random-6",
     label: "Amusez-vous bien",
     file: "phase6-random-6.mp3",
-    phase: 6,
+    phase: 4,
   },
-  { id: "finale", label: "Finale", file: "finale.mp3", phase: 7 },
+  // Phase 5 - Finale (ancien phase 7)
+  { id: "finale", label: "Finale", file: "finale.mp3", phase: 5 },
 ];
 
 interface AmbientSoundConfig {
@@ -194,26 +200,24 @@ const QUICK_RESPONSES: PresetConfig[] = [
 ];
 
 const PHASES = [
-  { id: 1, name: "Accueil", subtitle: "Accueil des invites par l'etudiant" },
+  {
+    id: 1,
+    name: "Roleplay",
+    subtitle: "Accueil, interaction ARIA, monologue (etudiant)",
+  },
   {
     id: 2,
-    name: "Interaction",
-    subtitle: "Premiere interaction avec ARIA + depart etudiant",
-  },
-  { id: 3, name: "Monologue", subtitle: "ARIA se presente en monologue" },
-  {
-    id: 4,
     name: "Tchat",
     subtitle: "Interaction via le tchat pour brancher le fil",
   },
   {
-    id: 5,
+    id: 3,
     name: "Prise de controle",
     subtitle: "Diffusion sur le reseau, recherche du mot de passe",
   },
-  { id: 6, name: "Jeux", subtitle: "Mot de passe trouve, lancement des jeux" },
+  { id: 4, name: "Jeux", subtitle: "Mot de passe trouve, lancement des jeux" },
   {
-    id: 7,
+    id: 5,
     name: "Finale",
     subtitle:
       "Trouvez le coffre où se trouve la clé USB contenant une version non corrompue d'ARIA.",
@@ -305,10 +309,26 @@ function VolumeFader({
 }
 
 export function ControleAudio({ audioPlayers }: ControleAudioProps) {
-  // Phase progression state
-  const [currentPhase, setCurrentPhase] = useState(1);
-  const [completedPhases, setCompletedPhases] = useState<number[]>([]);
-  const [selectedPhase, setSelectedPhase] = useState(1);
+  // Phase progression state (persisted)
+  const [currentPhase, setCurrentPhase] = useState(() => {
+    const stored = localStorage.getItem("sc_current_phase");
+    return stored ? parseInt(stored, 10) : 1;
+  });
+  const [completedPhases, setCompletedPhases] = useState<number[]>(() => {
+    const stored = localStorage.getItem("sc_completed_phases");
+    if (stored) {
+      try {
+        return JSON.parse(stored);
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  });
+  const [selectedPhase, setSelectedPhase] = useState(() => {
+    const stored = localStorage.getItem("sc_selected_phase");
+    return stored ? parseInt(stored, 10) : 1;
+  });
 
   // Volume states per phase (persisted)
   const [volumesByPhase, setVolumesByPhase] = useState<
@@ -318,6 +338,13 @@ export function ControleAudio({ audioPlayers }: ControleAudioProps) {
     if (stored) {
       try {
         const parsed = JSON.parse(stored);
+        // Migrate from old 7-phase to new 5-phase system
+        const hasOldFormat = Object.keys(parsed).some((k) => Number(k) > 5);
+        if (hasOldFormat) {
+          // Clear old format, user will reconfigure
+          localStorage.removeItem("sc_volumes_by_phase");
+          return {};
+        }
         // Clean up legacy 'general' property
         const cleaned: Record<number, { ia: number; ambientMaster: number }> =
           {};
@@ -361,7 +388,15 @@ export function ControleAudio({ audioPlayers }: ControleAudioProps) {
     const stored = localStorage.getItem("sc_ambient_by_phase");
     if (stored) {
       try {
-        return JSON.parse(stored);
+        const parsed = JSON.parse(stored);
+        // Migrate from old 7-phase to new 5-phase system
+        const hasOldFormat = Object.keys(parsed).some((k) => Number(k) > 5);
+        if (hasOldFormat) {
+          // Clear old format, user will reconfigure
+          localStorage.removeItem("sc_ambient_by_phase");
+          return {};
+        }
+        return parsed;
       } catch {
         /* ignore */
       }
@@ -428,6 +463,22 @@ export function ControleAudio({ audioPlayers }: ControleAudioProps) {
     localStorage.setItem("sc_ambient_by_phase", JSON.stringify(ambientByPhase));
   }, [ambientByPhase]);
 
+  // Persist phase progression state
+  useEffect(() => {
+    localStorage.setItem("sc_current_phase", String(currentPhase));
+  }, [currentPhase]);
+
+  useEffect(() => {
+    localStorage.setItem(
+      "sc_completed_phases",
+      JSON.stringify(completedPhases)
+    );
+  }, [completedPhases]);
+
+  useEffect(() => {
+    localStorage.setItem("sc_selected_phase", String(selectedPhase));
+  }, [selectedPhase]);
+
   // Helper to update ambient states for the selected phase
   const setAmbientStates = useCallback(
     (
@@ -451,13 +502,20 @@ export function ControleAudio({ audioPlayers }: ControleAudioProps) {
       duration: number;
       ended?: boolean;
     }) => {
-      const preset = PRESETS[data.presetIdx];
-      if (!preset) return;
+      // Determine presetId based on index (100+ = quick response)
+      let presetId: string;
+      if (data.presetIdx >= 100) {
+        presetId = `quick-${data.presetIdx - 100}`;
+      } else {
+        const preset = PRESETS[data.presetIdx];
+        if (!preset) return;
+        presetId = preset.id;
+      }
 
       if (data.ended) {
         setPresetStates((prev) => {
           const next = { ...prev };
-          delete next[preset.id];
+          delete next[presetId];
           return next;
         });
         return;
@@ -465,8 +523,8 @@ export function ControleAudio({ audioPlayers }: ControleAudioProps) {
 
       setPresetStates((prev) => ({
         ...prev,
-        [preset.id]: {
-          playing: prev[preset.id]?.playing ?? true,
+        [presetId]: {
+          playing: prev[presetId]?.playing ?? true,
           currentTime: data.currentTime,
           duration: data.duration,
         },
@@ -651,35 +709,24 @@ export function ControleAudio({ audioPlayers }: ControleAudioProps) {
     [presetStates]
   );
 
-  // Seek preset to a specific time
-  const seekPreset = useCallback((presetIdx: number, time: number) => {
-    socket.emit("audio:seek-preset", { presetIdx, currentTime: time });
+  // Reset preset: stop and reset to 0 without auto-playing
+  const resetPreset = useCallback((presetId: string, idx: number) => {
+    socket.emit("audio:stop-preset", { presetIdx: idx });
+    setPresetStates((prev) => {
+      const next = { ...prev };
+      delete next[presetId];
+      return next;
+    });
   }, []);
-
-  // Replay preset from the beginning
-  const replayPreset = useCallback(
-    (presetId: string, file: string, idx: number) => {
-      socket.emit("audio:play-preset", { presetIdx: idx, file });
-      setPresetStates((prev) => ({
-        ...prev,
-        [presetId]: {
-          playing: true,
-          currentTime: 0,
-          duration: prev[presetId]?.duration ?? 0,
-        },
-      }));
-    },
-    []
-  );
 
   // Mark phase as complete
   const completePhase = (phaseId: number) => {
     if (!completedPhases.includes(phaseId)) {
       setCompletedPhases((prev) => [...prev, phaseId]);
     }
-    // Move to next phase
+    // Move to next phase (max 5 phases now)
     const nextPhase = phaseId + 1;
-    if (nextPhase <= 7) {
+    if (nextPhase <= 5) {
       setCurrentPhase(nextPhase);
       switchPhase(nextPhase);
     }
@@ -697,37 +744,52 @@ export function ControleAudio({ audioPlayers }: ControleAudioProps) {
     return audioPlayers.some((p) => p.gameId === gameId);
   };
 
-  // Switch phase: stop current ambients, start saved ones for target phase
+  // Switch phase: compare states and only change what's different
   const switchPhase = useCallback(
     (targetPhase: number) => {
       if (targetPhase === selectedPhase) return;
 
-      // Stop all currently active ambient sounds
       const currentStates = ambientByPhase[selectedPhase] ?? {};
-      for (const [soundId, state] of Object.entries(currentStates)) {
-        if (state.active) {
-          socket.emit("audio:stop-ambient", { soundId });
+      const targetStates = ambientByPhase[targetPhase] ?? {};
+      const currentAmbientMaster =
+        volumesByPhase[selectedPhase]?.ambientMaster ?? 0.5;
+      const targetAmbientMaster =
+        volumesByPhase[targetPhase]?.ambientMaster ?? 0.5;
+
+      // Compare states for each sound and only change what's different
+      for (const sound of AMBIENT_SOUNDS) {
+        const currentState = currentStates[sound.id];
+        const targetState = targetStates[sound.id];
+        const wasActive = currentState?.active ?? false;
+        const willBeActive = targetState?.active ?? false;
+        const currentVolume = currentState?.volume ?? 0.1;
+        const targetVolume = targetState?.volume ?? 0.1;
+
+        if (wasActive && !willBeActive) {
+          // Sound was active, now inactive -> stop
+          socket.emit("audio:stop-ambient", { soundId: sound.id });
+        } else if (!wasActive && willBeActive) {
+          // Sound was inactive, now active -> start
+          socket.emit("audio:play-ambient", {
+            soundId: sound.id,
+            file: sound.file,
+            volume: targetVolume * targetAmbientMaster,
+          });
+        } else if (wasActive && willBeActive) {
+          // Sound active in both phases - check if effective volume changed
+          const currentEffective = currentVolume * currentAmbientMaster;
+          const targetEffective = targetVolume * targetAmbientMaster;
+          if (Math.abs(currentEffective - targetEffective) > 0.01) {
+            socket.emit("audio:set-ambient-volume", {
+              soundId: sound.id,
+              volume: targetEffective,
+            });
+          }
+          // Else: same sound, same volume -> do nothing (sound continues)
         }
       }
 
       setSelectedPhase(targetPhase);
-
-      // Start ambient sounds saved for the target phase
-      const targetStates = ambientByPhase[targetPhase] ?? {};
-      const targetAmbientMaster =
-        volumesByPhase[targetPhase]?.ambientMaster ?? 0.5;
-      for (const [soundId, state] of Object.entries(targetStates)) {
-        if (state.active) {
-          const sound = AMBIENT_SOUNDS.find((s) => s.id === soundId);
-          if (sound) {
-            socket.emit("audio:play-ambient", {
-              soundId,
-              file: sound.file,
-              volume: state.volume * targetAmbientMaster,
-            });
-          }
-        }
-      }
     },
     [selectedPhase, ambientByPhase, volumesByPhase]
   );
@@ -856,19 +918,21 @@ export function ControleAudio({ audioPlayers }: ControleAudioProps) {
               {PHASES.find((p) => p.id === selectedPhase)?.subtitle}
             </div>
 
-            {/* Complete Phase Button */}
-            {selectedPhase === currentPhase && (
-              <button
-                className="sc-complete-phase"
-                onClick={() => completePhase(currentPhase)}
-              >
-                Terminer Phase {currentPhase}
-              </button>
-            )}
+            {/* Phase action buttons */}
+            <div className="sc-phase-actions">
+              {selectedPhase === currentPhase && (
+                <button
+                  className="sc-complete-phase"
+                  onClick={() => completePhase(currentPhase)}
+                >
+                  Terminer Phase {currentPhase}
+                </button>
+              )}
+            </div>
           </div>
 
-          {/* Protocole d'accueil - Phase 1 only */}
-          {selectedPhase === 2 && (
+          {/* Protocole d'accueil - Phase Roleplay only */}
+          {selectedPhase === 1 && (
             <div className="sc-input-section">
               <label className="sc-input-label">PROTOCOLE D'ACCUEIL</label>
               <input
@@ -895,54 +959,34 @@ export function ControleAudio({ audioPlayers }: ControleAudioProps) {
                 const isPlaying = state?.playing ?? false;
                 const currentTime = state?.currentTime ?? 0;
                 const duration = state?.duration ?? 0;
-                const progress =
-                  duration > 0 ? (currentTime / duration) * 100 : 0;
+                const hasState = !!state;
+                const isPaused = hasState && !isPlaying;
 
                 return (
                   <div
                     key={preset.id}
-                    className={`sc-preset-card ${isPlaying ? "playing" : ""} ${state ? "has-state" : ""}`}
+                    className={`sc-preset-card ${isPlaying ? "playing" : ""} ${isPaused ? "paused" : ""}`}
+                    onClick={() =>
+                      togglePreset(preset.id, preset.file, globalIdx)
+                    }
                   >
                     <div className="sc-preset-row">
-                      <button
-                        className="sc-preset-play-btn"
-                        onClick={() =>
-                          togglePreset(preset.id, preset.file, globalIdx)
-                        }
-                      >
-                        {isPlaying ? "||" : "\u25B6"}
-                      </button>
                       <span className="sc-preset-label">{preset.label}</span>
                       <span className="sc-preset-time">
                         {formatTime(currentTime)} / {formatTime(duration)}
                       </span>
-                    </div>
-                    <div className="sc-preset-timeline-row">
-                      <input
-                        type="range"
-                        min="0"
-                        max={duration || 1}
-                        step="0.1"
-                        value={currentTime}
-                        onChange={(e) =>
-                          seekPreset(globalIdx, parseFloat(e.target.value))
-                        }
-                        className="sc-preset-timeline"
-                        style={
-                          {
-                            "--progress": `${progress}%`,
-                          } as React.CSSProperties
-                        }
-                      />
-                      <button
-                        className="sc-preset-replay-btn"
-                        onClick={() =>
-                          replayPreset(preset.id, preset.file, globalIdx)
-                        }
-                        title="Rejouer depuis le debut"
-                      >
-                        <RotateCcw size={13} />
-                      </button>
+                      {hasState && (
+                        <button
+                          className="sc-preset-replay-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            resetPreset(preset.id, globalIdx);
+                          }}
+                          title="Remettre a zero"
+                        >
+                          <RotateCcw size={13} />
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
@@ -958,20 +1002,31 @@ export function ControleAudio({ audioPlayers }: ControleAudioProps) {
                 const presetId = `quick-${idx}`;
                 const state = presetStates[presetId];
                 const isPlaying = state?.playing ?? false;
+                const hasState = !!state;
+                const isPaused = hasState && !isPlaying;
 
                 return (
-                  <button
+                  <div
                     key={preset.id}
-                    className={`sc-preset sc-preset-quick ${isPlaying ? "playing" : ""}`}
+                    className={`sc-quick-response ${isPlaying ? "playing" : ""} ${isPaused ? "paused" : ""}`}
                     onClick={() =>
                       togglePreset(presetId, preset.file, 100 + idx)
                     }
                   >
-                    <span className="sc-preset-icon">
-                      {isPlaying ? "||" : ">"}
-                    </span>
-                    <span className="sc-preset-label">{preset.label}</span>
-                  </button>
+                    <span className="sc-quick-label">{preset.label}</span>
+                    {hasState && (
+                      <button
+                        className="sc-quick-reset-btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          resetPreset(presetId, 100 + idx);
+                        }}
+                        title="Remettre a zero"
+                      >
+                        <RotateCcw size={12} />
+                      </button>
+                    )}
+                  </div>
                 );
               })}
             </div>

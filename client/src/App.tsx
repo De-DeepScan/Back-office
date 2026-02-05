@@ -381,6 +381,14 @@ function App() {
   const [isMessageSending, setIsMessageSending] = useState(false);
   const [messageTimeRemaining, setMessageTimeRemaining] = useState(0);
 
+  // Global reset dialog
+  const [showGlobalResetDialog, setShowGlobalResetDialog] = useState(false);
+
+  // Game timer (synchronized with Map infection start)
+  const [gameStartTime, setGameStartTime] = useState<number | null>(null);
+  const [elapsedTime, setElapsedTime] = useState(0);
+  const TOTAL_GAME_TIME = 15 * 60; // 15 minutes in seconds
+
   // Calculate message display duration (matches Messagerie timing)
   const getMessageDuration = (content: string) => {
     const initialDelay = 200;
@@ -555,6 +563,33 @@ function App() {
     return () => clearInterval(interval);
   }, [messageTimeRemaining > 0]);
 
+  // Detect Map infection start to sync timer
+  useEffect(() => {
+    const mapGame = games.find((g) => g.gameId === "infection-map");
+    const mapStatus = mapGame?.state?.status as string | undefined;
+
+    if (mapStatus === "infection_running" && !gameStartTime) {
+      setGameStartTime(Date.now());
+    }
+    // Reset timer if Map is reset
+    if (mapStatus === "idle" || mapStatus === "reset") {
+      setGameStartTime(null);
+      setElapsedTime(0);
+    }
+  }, [games, gameStartTime]);
+
+  // Timer update effect
+  useEffect(() => {
+    if (!gameStartTime) return;
+
+    const interval = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - gameStartTime) / 1000);
+      setElapsedTime(elapsed);
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [gameStartTime]);
+
   const activeGroup = groups.find((g) => g.baseId === activeTab) ?? null;
 
   const sendCommand = useCallback(
@@ -694,6 +729,44 @@ function App() {
       params: {},
     });
   }, []);
+
+  // Global reset: reset all games and audio
+  const handleGlobalReset = useCallback(async () => {
+    // Reset all connected games that have a reset action
+    for (const group of groups) {
+      for (const instance of group.instances) {
+        if (instance.status === "connected") {
+          const resetAction = instance.availableActions.find(
+            (a) => a.id === "reset"
+          );
+          if (resetAction) {
+            await sendCommand(instance.gameId, "reset", {});
+          }
+        }
+      }
+    }
+
+    // Stop all audio
+    socket.emit("audio:stop-all");
+
+    // Reset timer
+    setGameStartTime(null);
+    setElapsedTime(0);
+
+    setShowGlobalResetDialog(false);
+    addEvent("action", "Reset global de l'escape game", undefined, "success");
+  }, [groups, sendCommand, addEvent]);
+
+  // Timer formatting helpers
+  const formatTimer = (seconds: number) => {
+    const remaining = Math.max(0, TOTAL_GAME_TIME - seconds);
+    const mins = Math.floor(remaining / 60);
+    const secs = remaining % 60;
+    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+  };
+
+  const isTimeCritical = elapsedTime > TOTAL_GAME_TIME - 60; // Last minute
+  const isTimeOver = elapsedTime >= TOTAL_GAME_TIME;
 
   const getStatus = (gameId: string, actionId: string): ActionStatus => {
     return statuses[`${gameId}:${actionId}`] ?? "idle";
@@ -1106,6 +1179,50 @@ function App() {
           </div>
         ) : null}
       </main>
+
+      {/* Global Controls Bar (bottom-left) */}
+      <div className="global-controls-bar">
+        <button
+          className="global-reset-btn"
+          onClick={() => setShowGlobalResetDialog(true)}
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+            <path d="M3 3v5h5" />
+          </svg>
+          Reset Global
+        </button>
+
+        {gameStartTime && (
+          <div
+            className={`game-timer ${isTimeCritical ? "critical" : ""} ${isTimeOver ? "over" : ""}`}
+          >
+            <span className="timer-label">TEMPS</span>
+            <span className="timer-value">{formatTimer(elapsedTime)}</span>
+          </div>
+        )}
+      </div>
+
+      {/* Global Reset Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={showGlobalResetDialog}
+        title="Reset Global ?"
+        message="Cela va reinitialiser TOUS les jeux et arreter tous les sons. Etes-vous sur ?"
+        confirmLabel="Reset Tout"
+        cancelLabel="Annuler"
+        variant="danger"
+        onConfirm={handleGlobalReset}
+        onCancel={() => setShowGlobalResetDialog(false)}
+      />
 
       <ConfirmDialog
         isOpen={confirmDialog.isOpen}
