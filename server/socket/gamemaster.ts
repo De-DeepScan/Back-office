@@ -266,7 +266,14 @@ export function setupGamemaster(io: Server): void {
         // Handle USB key explicit disconnection
         if (data.name === "usb_unplugged" && key === "usb-key") {
           console.log("[automation] USB key unplugged");
+          const usbGame = connectedGames.get("usb-key");
+          if (usbGame) {
+            usbGame.status = "not_started";
+            usbGame.socketId = null;
+            usbGame.state = {};
+          }
           io.emit("usb_unplugged");
+          io.emit("games_updated", getConnectedGames());
         }
 
         // Relay Sidequest score to Labyrinth

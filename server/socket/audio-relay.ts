@@ -367,6 +367,12 @@ export function setupAudioRelay(io: Server) {
         }
 
         io.to("audio-players").emit(event, payload);
+        // audio:stop-all must be received by ALL clients (including backoffice for phase reset)
+        if (event === "audio:stop-all") {
+          io.emit(event, payload);
+        } else {
+          io.to("audio-players").emit(event, payload);
+        }
       });
     }
 
