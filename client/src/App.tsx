@@ -20,9 +20,6 @@ import { WebcamViewer } from "./components/WebcamViewer";
 import { socket, API_URL } from "./socket";
 import { useTTS } from "./hooks/useTTS";
 
-// Preset index for "Phase 5" audio in PRESETS array
-const PHASE_5_PRESET_IDX = 6;
-
 type ActionStatus = "idle" | "loading" | "success" | "error";
 
 interface GameAction {
@@ -406,7 +403,6 @@ function App() {
   const [customMessage, setCustomMessage] = useState("");
   const [isMessageSending, setIsMessageSending] = useState(false);
   const [messageTimeRemaining, setMessageTimeRemaining] = useState(0);
-  const [isAriaLaunching, setIsAriaLaunching] = useState(false);
   const { playText, isGenerating: ttsGenerating } = useTTS("john");
 
   // Global reset dialog
@@ -515,6 +511,12 @@ function App() {
       setGames(data);
     });
 
+    // USB key explicit disconnection notification
+    socket.on("usb_unplugged", () => {
+      toast.info("Clé USB débranchée");
+      addEvent("connection", "Clé USB débranchée", "usb-key", "info");
+    });
+
     // Audio status updates (with per-game tracking)
     socket.on(
       "audio-status-updated",
@@ -543,6 +545,7 @@ function App() {
       socket.off("connect");
       socket.off("disconnect");
       socket.off("games_updated");
+      socket.off("usb_unplugged");
       socket.off("audio-status-updated");
       socket.off("audio:log");
     };
@@ -755,51 +758,6 @@ function App() {
     });
   }, []);
 
-  // Launch ARIA: triggers audio, animation, password display, and map infection
-  const handleLaunchAria = useCallback(async () => {
-    setIsAriaLaunching(true);
-    addEvent("action", "Lancement ARIA en cours...", undefined, "info");
-
-    try {
-      // 1. Play Phase 5 audio
-      socket.emit("audio:play-preset", {
-        presetIdx: PHASE_5_PRESET_IDX,
-        file: "phase-5.mp3",
-      });
-
-      // 2. Send commands to all games in parallel
-      const commands = [
-        // ARIA: start intro animation
-        fetch(`${API_URL}/api/games/aria/command`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "start_intro", payload: {} }),
-        }),
-        // Sidequest: show password screen
-        fetch(`${API_URL}/api/games/sidequest/command`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "start_screen", payload: {} }),
-        }),
-        // Infection Map: start infection
-        fetch(`${API_URL}/api/games/infection-map/command`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "start_infection", payload: {} }),
-        }),
-      ];
-
-      await Promise.allSettled(commands);
-      addEvent("action", "Lancement ARIA réussi", undefined, "success");
-    } catch (error) {
-      console.error("Launch ARIA error:", error);
-      addEvent("action", "Erreur lors du lancement ARIA", undefined, "error");
-    } finally {
-      setTimeout(() => setIsAriaLaunching(false), 2000);
-    }
-  }, [addEvent]);
-
-
   // Global reset: reset all games and audio
   const handleGlobalReset = useCallback(async () => {
     // Reset all connected games that have a reset action
@@ -855,8 +813,6 @@ function App() {
         activeTab={activeTab}
         onTabChange={setActiveTab}
         usbKeyConnected={usbKeyConnected}
-        onLaunchAria={handleLaunchAria}
-        isAriaLaunching={isAriaLaunching}
       />
       <aside className="webcam-sidebar">
         <WebcamViewer />
@@ -865,11 +821,7 @@ function App() {
 
       <main className="controls">
         {activeTab === "sound_control" ? (
-          <ControleAudio
-            audioPlayers={audioPlayers}
-            onLaunchAria={handleLaunchAria}
-            isAriaLaunching={isAriaLaunching}
-          />
+          <ControleAudio audioPlayers={audioPlayers} />
         ) : activeGroup ? (
           <div className="game-panel">
             {/* Instance cards */}

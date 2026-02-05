@@ -263,6 +263,12 @@ export function setupGamemaster(io: Server): void {
           }
         }
 
+        // Handle USB key explicit disconnection
+        if (data.name === "usb_unplugged" && key === "usb-key") {
+          console.log("[automation] USB key unplugged");
+          io.emit("usb_unplugged");
+        }
+
         // Relay Sidequest score to Labyrinth
         if (data.name === "point_earned" && key === "sidequest") {
           const payload = { points: data.data?.points };
