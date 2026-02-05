@@ -301,20 +301,21 @@ export function setupGamemaster(io: Server): void {
 
         // Relay dilemma_response from ARIA to Labyrinth and Map
         if (data.name === "dilemma_response" && key === "aria") {
-          const { dilemmaId, choiceId } = data.data as {
+          const { dilemmaId, choiceId, choiceDescription } = data.data as {
             dilemmaId: string;
             choiceId: string;
+            choiceDescription?: string;
           };
 
           console.log(
-            `[relay] Dilemma choice: dilemma=${dilemmaId}, choice=${choiceId}`
+            `[relay] Dilemma choice: dilemma=${dilemmaId}, choice=${choiceId}, desc="${choiceDescription ?? ""}"`
           );
 
           // Play ARIA voice for this dilemma choice on all speakers (except JT)
-          const audioPlayed = playDilemmeAudio(io, choiceId);
+          const audioPlayed = playDilemmeAudio(io, dilemmaId, choiceId);
           if (!audioPlayed) {
             console.warn(
-              `[relay] No audio file matched for dilemma choice: ${choiceId}`
+              `[relay] No audio file matched for dilemma=${dilemmaId} choice=${choiceId}`
             );
           }
 

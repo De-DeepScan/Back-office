@@ -108,41 +108,44 @@ if (dilemmeFiles.length > 0) {
   );
 }
 
+// Mapping: "dilemmaId:choiceId" -> audio filename in Dilemmes/
+// dilemmaId and choiceId come from ARIA as numbers ("1"-"6", "1" or "2")
+const DILEMME_MAP: Record<string, string> = {
+  // Dilemme 1 — Trolley (véhicule autonome)
+  "1:1": "Sauver les peitons.mp3",
+  "1:2": "Se sauver.mp3",
+  // Dilemme 2 — Surveillance vs vie privée
+  "2:1": "Surveille massivement.mp3",
+  "2:2": "Protegee la vie privee.mp3",
+  // Dilemme 3 — Sacrifice médical
+  "3:1": "Sacrifier le patient sain.mp3",
+  "3:2": "Refuser le sacrifice.mp3",
+  // Dilemme 4 — EHPAD vs orphelinat
+  "4:1": "Sauver l'EHPAD.mp3",
+  "4:2": "Sauver l'orphelinat.mp3",
+  // Dilemme 5 — Chirurgien vs famille
+  "5:1": "Sauver le chirugien.mp3",
+  "5:2": "Sauver membre de la famille.mp3",
+  // Dilemme 6 — (pas de fichier audio dédié)
+};
+
 // Play a dilemme audio file on all voice speakers (server-initiated)
-export function playDilemmeAudio(io: Server, choiceId: string): boolean {
-  // Try to find a matching file by choiceId
-  const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+export function playDilemmeAudio(
+  io: Server,
+  dilemmaId: string,
+  choiceId: string
+): boolean {
+  const key = `${dilemmaId}:${choiceId}`;
+  const filename = DILEMME_MAP[key];
 
-  const normalizedChoice = normalize(choiceId);
-
-  let matchedFile: string | null = null;
-  for (const file of dilemmeFiles) {
-    const name = file.replace(".mp3", "");
-    if (name === choiceId || normalize(name) === normalizedChoice) {
-      matchedFile = file;
-      break;
-    }
-  }
-
-  // Partial match fallback
-  if (!matchedFile) {
-    for (const file of dilemmeFiles) {
-      const name = normalize(file.replace(".mp3", ""));
-      if (name.includes(normalizedChoice) || normalizedChoice.includes(name)) {
-        matchedFile = file;
-        break;
-      }
-    }
-  }
-
-  if (!matchedFile) {
+  if (!filename) {
     console.warn(
-      `[audio-relay] No dilemme audio for choiceId="${choiceId}". Available: ${dilemmeFiles.map((f: string) => f.replace(".mp3", "")).join(", ")}`
+      `[audio-relay] No dilemme mapping for key="${key}". Known keys: ${Object.keys(DILEMME_MAP).join(", ")}`
     );
     return false;
   }
 
-  const relativePath = `Dilemmes/${matchedFile}`;
+  const relativePath = `Dilemmes/${filename}`;
   const fullPath = path.join(__dirname, "..", "audio", "presets", relativePath);
 
   if (!existsSync(fullPath)) {
@@ -152,7 +155,7 @@ export function playDilemmeAudio(io: Server, choiceId: string): boolean {
 
   const fileSizeKB = Math.round(statSync(fullPath).size / 1024);
   console.log(
-    `[audio-relay] Playing dilemme: "${matchedFile}" (${fileSizeKB}KB) for choiceId="${choiceId}"`
+    `[audio-relay] Playing dilemme: "${filename}" (${fileSizeKB}KB) for key="${key}"`
   );
 
   io.to("audio-players:voice").emit("audio:play-preset", {
@@ -163,7 +166,7 @@ export function playDilemmeAudio(io: Server, choiceId: string): boolean {
   io.emit("audio:log", {
     type: "preset",
     action: "play",
-    message: `Dilemme "${matchedFile}" → voix`,
+    message: `Dilemme "${filename}" → voix`,
     timestamp: new Date(),
   });
 
