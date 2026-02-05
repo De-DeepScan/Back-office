@@ -1373,6 +1373,30 @@
   background: var(--color-bg-surface);
 }
 
+.camera-reload-btn {
+  margin-left: auto;
+  background: none;
+  border: 1px solid rgba(0, 255, 255, 0.2);
+  color: var(--color-primary);
+  font-size: 14px;
+  line-height: 1;
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  opacity: 0.6;
+}
+
+.camera-reload-btn:hover {
+  opacity: 1;
+  background: rgba(0, 255, 255, 0.1);
+  border-color: var(--color-primary);
+}
+
 .camera-status-dot {
   width: 6px;
   height: 6px;
