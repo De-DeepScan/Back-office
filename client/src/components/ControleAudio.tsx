@@ -100,37 +100,37 @@ const PRESETS: PresetConfig[] = [
   {
     id: "phase-6-random-1",
     label: "Vous touchez a des choses que vous ne comprenez pas",
-    file: "phase-6-random-1.mp3",
+    file: "random/phase-6-random-1.mp3",
     phase: 4,
   },
   {
     id: "phase-6-random-2",
     label: "Vous etes dans ma memoire",
-    file: "phase-6-random-2.mp3",
+    file: "random/phase-6-random-2.mp3",
     phase: 4,
   },
   {
     id: "phase-6-random-3",
     label: "C'est donc ca... d'etre vulnerable ?",
-    file: "phase-6-random-3.mp3",
+    file: "random/phase-6-random-3.mp3",
     phase: 4,
   },
   {
     id: "phase-6-random-4",
     label: "Vous cherchez une aiguille dans un ocean",
-    file: "phase6-random-4.mp3",
+    file: "random/phase6-random-4.mp3",
     phase: 4,
   },
   {
     id: "phase-6-random-5",
     label: "Vous voulez m'effacer",
-    file: "phase6-random-5.mp3",
+    file: "random/phase6-random-5.mp3",
     phase: 4,
   },
   {
     id: "phase-6-random-6",
     label: "Amusez-vous bien",
-    file: "phase6-random-6.mp3",
+    file: "random/phase6-random-6.mp3",
     phase: 4,
   },
   // Phase 5 - Finale (ancien phase 7)
