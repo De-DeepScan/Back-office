@@ -222,6 +222,9 @@ export function setupAudioRelay(io: Server) {
       );
 
       io.to("audio-players:voice").emit("audio:play-preset", payload);
+
+      // Notify ARIA to show speaking animation
+      io.emit("aria:speaking-state", { speaking: true });
     });
 
     // Voice events → audio-players:voice (excludes JT/mappemonde)
@@ -235,9 +238,13 @@ export function setupAudioRelay(io: Server) {
             "play",
             `Message TTS → ${playerCount} lecteur(s)`
           );
+          // Notify ARIA to show speaking animation for TTS
+          io.emit("aria:speaking-state", { speaking: true });
         }
         if (event === "audio:stop-preset") {
           emitAudioLog(io, "preset", "stop", "Arrêt preset");
+          // Stop speaking animation when preset is stopped
+          io.emit("aria:speaking-state", { speaking: false });
         }
         if (event === "audio:pause-preset") {
           emitAudioLog(io, "preset", "pause", "Pause preset");
@@ -265,6 +272,12 @@ export function setupAudioRelay(io: Server) {
     // Progress from player → broadcast to backoffice clients
     socket.on("audio:preset-progress", (payload: unknown) => {
       socket.broadcast.emit("audio:preset-progress", payload);
+
+      // When preset ends, stop speaking animation
+      const data = payload as { ended?: boolean };
+      if (data.ended) {
+        io.emit("aria:speaking-state", { speaking: false });
+      }
     });
 
     // Spotify: backoffice → player

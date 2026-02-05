@@ -1540,3 +1540,90 @@
   color: var(--color-text);
 }
 
+/* === Global Controls Bar (bottom-left) === */
+.global-controls-bar {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  z-index: 40;
+}
+
+.global-reset-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 2px solid rgba(239, 68, 68, 0.5);
+  border-radius: 4px;
+  color: #ef4444;
+  font-family: var(--font-primary);
+  font-size: var(--text-sm);
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.global-reset-btn:hover {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: #ef4444;
+  box-shadow: 0 0 15px rgba(239, 68, 68, 0.3);
+}
+
+.game-timer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 20px;
+  background: rgba(0, 0, 0, 0.6);
+  border: 2px solid var(--color-primary);
+  border-radius: 4px;
+}
+
+.timer-label {
+  font-size: 0.6rem;
+  letter-spacing: 2px;
+  opacity: 0.6;
+  color: var(--color-primary);
+}
+
+.timer-value {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: var(--color-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.game-timer.critical {
+  border-color: #f59e0b;
+  animation: timer-pulse 1s ease-in-out infinite;
+}
+
+.game-timer.critical .timer-label,
+.game-timer.critical .timer-value {
+  color: #f59e0b;
+}
+
+.game-timer.over {
+  border-color: #ef4444;
+  animation: none;
+}
+
+.game-timer.over .timer-label,
+.game-timer.over .timer-value {
+  color: #ef4444;
+}
+
+@keyframes timer-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 rgba(245, 158, 11, 0);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(245, 158, 11, 0.4);
+  }
+}
+
