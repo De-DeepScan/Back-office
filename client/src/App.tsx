@@ -810,39 +810,7 @@ function App() {
                       )}
 
                       <div className="action-grid">
-                        {/* AI Toggle for Labyrinthe - standard ActionButton */}
-                        {activeGroup.baseId === "labyrinthe" &&
-                          (() => {
-                            const bothConnected =
-                              areLabyrintheInstancesConnected(
-                                activeGroup.instances
-                              );
-                            const aiEnabled = getLabyrintheAIState(
-                              activeGroup.instances
-                            );
-
-                            return (
-                              <ActionButton
-                                action={{
-                                  id: aiEnabled ? "disable_ai" : "enable_ai",
-                                  label: aiEnabled
-                                    ? "Désactiver l'IA"
-                                    : "Activer l'IA",
-                                }}
-                                variant={aiEnabled ? "danger" : "success"}
-                                status="idle"
-                                onClick={() => {
-                                  sendToAll(
-                                    activeGroup.instances,
-                                    { id: "set_ai", label: "Toggle IA" },
-                                    { enabled: !aiEnabled }
-                                  );
-                                }}
-                                disabled={!bothConnected}
-                              />
-                            );
-                          })()}
-                        {regularActions.map((action) => {
+                        {regularActions.flatMap((action) => {
                           const allStatuses = activeGroup.instances.map(
                             (inst) => getStatus(inst.gameId, action.id)
                           );
@@ -873,7 +841,7 @@ function App() {
                               activeGroup.instances
                             );
 
-                          return (
+                          const actionButton = (
                             <ActionButton
                               key={action.id}
                               action={action}
@@ -909,6 +877,40 @@ function App() {
                               }
                             />
                           );
+
+                          // Insert AI toggle button right after "start" for Labyrinthe
+                          if (
+                            action.id === "start" &&
+                            activeGroup.baseId === "labyrinthe"
+                          ) {
+                            const aiEnabled = getLabyrintheAIState(
+                              activeGroup.instances
+                            );
+                            return [
+                              actionButton,
+                              <ActionButton
+                                key="ai-toggle"
+                                action={{
+                                  id: aiEnabled ? "disable_ai" : "enable_ai",
+                                  label: aiEnabled
+                                    ? "Désactiver l'IA"
+                                    : "Activer l'IA",
+                                }}
+                                variant={aiEnabled ? "danger" : "success"}
+                                status="idle"
+                                onClick={() => {
+                                  sendToAll(
+                                    activeGroup.instances,
+                                    { id: "set_ai", label: "Toggle IA" },
+                                    { enabled: !aiEnabled }
+                                  );
+                                }}
+                                disabled={isLabyrintheBlocked}
+                              />,
+                            ];
+                          }
+
+                          return [actionButton];
                         })}
                       </div>
 
