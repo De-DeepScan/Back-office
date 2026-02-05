@@ -428,9 +428,19 @@ function App() {
   // Phase 5 (Prise de contrôle) launch state
   const [isAriaLaunching, setIsAriaLaunching] = useState(false);
 
-  // Game timer (synchronized with Map infection start)
-  const [gameStartTime, setGameStartTime] = useState<number | null>(null);
-  const [elapsedTime, setElapsedTime] = useState(0);
+  // Game timer (synchronized with Map infection start, persisted in localStorage)
+  const TIMER_STORAGE_KEY = "gamemaster-timer-start";
+  const [gameStartTime, setGameStartTime] = useState<number | null>(() => {
+    const saved = localStorage.getItem(TIMER_STORAGE_KEY);
+    return saved ? parseInt(saved, 10) : null;
+  });
+  const [elapsedTime, setElapsedTime] = useState(() => {
+    const saved = localStorage.getItem(TIMER_STORAGE_KEY);
+    if (saved) {
+      return Math.floor((Date.now() - parseInt(saved, 10)) / 1000);
+    }
+    return 0;
+  });
   const TOTAL_GAME_TIME = 15 * 60; // 15 minutes in seconds
 
   // Calculate message display duration (matches Messagerie timing)
@@ -641,6 +651,34 @@ function App() {
 
     return () => clearInterval(interval);
   }, [gameStartTime]);
+
+  // Persist gameStartTime to localStorage
+  useEffect(() => {
+    if (gameStartTime !== null) {
+      localStorage.setItem(TIMER_STORAGE_KEY, gameStartTime.toString());
+    } else {
+      localStorage.removeItem(TIMER_STORAGE_KEY);
+    }
+  }, [gameStartTime]);
+
+  // Sync timer across tabs via storage event
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === TIMER_STORAGE_KEY) {
+        if (e.newValue) {
+          const newStartTime = parseInt(e.newValue, 10);
+          setGameStartTime(newStartTime);
+          setElapsedTime(Math.floor((Date.now() - newStartTime) / 1000));
+        } else {
+          setGameStartTime(null);
+          setElapsedTime(0);
+        }
+      }
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
+  }, []);
 
   const activeGroup = groups.find((g) => g.baseId === activeTab) ?? null;
 
@@ -1333,6 +1371,18 @@ function App() {
         ) : null}
       </main>
 
+      {/* Game Timer (top-left) */}
+      {gameStartTime && (
+        <div className="game-timer-container">
+          <div
+            className={`game-timer ${isTimeCritical ? "critical" : ""} ${isTimeOver ? "over" : ""}`}
+          >
+            <span className="timer-label">TEMPS</span>
+            <span className="timer-value">{formatTimer(elapsedTime)}</span>
+          </div>
+        </div>
+      )}
+
       {/* Global Controls Bar (bottom-left) */}
       <div className="global-controls-bar">
         <button
@@ -1354,15 +1404,6 @@ function App() {
           </svg>
           Reset Global
         </button>
-
-        {gameStartTime && (
-          <div
-            className={`game-timer ${isTimeCritical ? "critical" : ""} ${isTimeOver ? "over" : ""}`}
-          >
-            <span className="timer-label">TEMPS</span>
-            <span className="timer-value">{formatTimer(elapsedTime)}</span>
-          </div>
-        )}
       </div>
 
       {/* Global Reset Confirmation Dialog */}
