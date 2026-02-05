@@ -20,12 +20,6 @@ import { WebcamViewer } from "./components/WebcamViewer";
 import { socket, API_URL } from "./socket";
 import { useTTS } from "./hooks/useTTS";
 
-// Preset index for "Presentation IA" audio
-const PRESENTATION_IA_PRESET_IDX = 3; // phase-2-presentation-ia.mp3
-
-// Preset index for "Presentation IA" audio
-const PRESENTATION_IA_PRESET_IDX = 3; // phase-2-presentation-ia.mp3
-
 type ActionStatus = "idle" | "loading" | "success" | "error";
 
 interface GameAction {
@@ -411,30 +405,6 @@ function App() {
   const [messageTimeRemaining, setMessageTimeRemaining] = useState(0);
   const [isAriaLaunching, setIsAriaLaunching] = useState(false);
   const { playText, isGenerating: ttsGenerating } = useTTS("john");
-
-  // Global reset dialog
-  const [showGlobalResetDialog, setShowGlobalResetDialog] = useState(false);
-
-  // Game timer (synchronized with Map infection start)
-  const [gameStartTime, setGameStartTime] = useState<number | null>(null);
-  const [elapsedTime, setElapsedTime] = useState(0);
-  const TOTAL_GAME_TIME = 15 * 60; // 15 minutes in seconds
-
-  // Global reset dialog
-  const [showGlobalResetDialog, setShowGlobalResetDialog] = useState(false);
-
-  // Game timer (synchronized with Map infection start)
-  const [gameStartTime, setGameStartTime] = useState<number | null>(null);
-  const [elapsedTime, setElapsedTime] = useState(0);
-  const TOTAL_GAME_TIME = 15 * 60; // 15 minutes in seconds
-
-  // Global reset dialog
-  const [showGlobalResetDialog, setShowGlobalResetDialog] = useState(false);
-
-  // Game timer (synchronized with Map infection start)
-  const [gameStartTime, setGameStartTime] = useState<number | null>(null);
-  const [elapsedTime, setElapsedTime] = useState(0);
-  const TOTAL_GAME_TIME = 15 * 60; // 15 minutes in seconds
 
   // Global reset dialog
   const [showGlobalResetDialog, setShowGlobalResetDialog] = useState(false);
