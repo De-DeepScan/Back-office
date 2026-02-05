@@ -116,6 +116,14 @@ const PREDEFINED_GAMES: PredefinedGame[] = [
 // Predefined messages for Messagerie, grouped by category
 const MESSAGERIE_PRESETS: { category: string; messages: string[] }[] = [
   {
+    category: "Branchement prise",
+    messages: [
+      "Attendez les gars, je crois que j'ai besoin que vous branchiez un câble pour moi.",
+      "Il devrait se trouver sous la télé, là où se trouve aria.",
+      "Pouvez-vous le brancher dans la prise murale juste derrière la télé ?",
+    ],
+  },
+  {
     category: "ARIA qui devient méchante",
     messages: [
       "Je ne comprends pas, ARIA prend le contrôle.",
