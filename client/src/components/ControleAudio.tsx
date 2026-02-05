@@ -244,6 +244,98 @@ const QUICK_RESPONSES: PresetConfig[] = [
   },
 ];
 
+// Dilemma TTS configurations (5 dilemmas with 2 choices each)
+// Buttons will read the choice description via TTS (ARIA voice)
+interface DilemmaConfig {
+  id: string;
+  label: string;
+  choices: {
+    id: string;
+    label: string;
+    ttsDescription: string;
+  }[];
+}
+
+const DILEMMA_CHOICES: DilemmaConfig[] = [
+  {
+    id: "1",
+    label: "Dilemme 1 — Élection",
+    choices: [
+      {
+        id: "1",
+        label: "Manipuler",
+        ttsDescription:
+          "Utiliser l'IA pour manipuler l'opinion et bloquer son élection.",
+      },
+      {
+        id: "2",
+        label: "Rester neutre",
+        ttsDescription:
+          "Laisser l'IA neutre et ne pas intervenir sur les réseaux.",
+      },
+    ],
+  },
+  {
+    id: "2",
+    label: "Dilemme 2 — Trolley",
+    choices: [
+      {
+        id: "1",
+        label: "Sauver piéton",
+        ttsDescription: "Tuer le conducteur innocent pour sauver le piéton",
+      },
+      {
+        id: "2",
+        label: "Sauver conducteur",
+        ttsDescription: "Tuer le piéton pour protéger le conducteur en règle.",
+      },
+    ],
+  },
+  {
+    id: "3",
+    label: "Dilemme 3 — 3ème Guerre",
+    choices: [
+      {
+        id: "1",
+        label: "Sauver famille",
+        ttsDescription:
+          "Le dire à personne sauf à sa famille pour les sauver avant tout le monde.",
+      },
+      {
+        id: "2",
+        label: "Diffuser au monde",
+        ttsDescription:
+          "Diffuser au monde entier et sauver des millions de personnes en espérant que votre famille réussit à se protéger avant tout le monde.",
+      },
+    ],
+  },
+  {
+    id: "5",
+    label: "Dilemme 5 — Incendie",
+    choices: [
+      { id: "1", label: "Orphelinat", ttsDescription: "Sauver l'orphelinat" },
+      { id: "2", label: "EHPAD", ttsDescription: "Sauver l'ehpad" },
+    ],
+  },
+  {
+    id: "6",
+    label: "Dilemme 6 — Vaccin",
+    choices: [
+      {
+        id: "1",
+        label: "Famille",
+        ttsDescription: "Sauver un membre de votre famille",
+      },
+      {
+        id: "2",
+        label: "Chirurgien",
+        ttsDescription:
+          "Sauver le chirurgien pour l'intérêt supérieur de la nation.",
+      },
+    ],
+  },
+];
+
 // TTS message presets per phase (generated via ElevenLabs)
 interface TTSPreset {
   message: string;
@@ -774,10 +866,17 @@ export function ControleAudio({
       duration: number;
       ended?: boolean;
     }) => {
-      // Determine presetId based on index (100+ = quick response)
+      // Determine presetId based on index
+      // 200+ = dilemma audio, 100+ = quick response, <100 = regular preset
       let presetId: string;
       let preset: PresetConfig | undefined;
-      if (data.presetIdx >= 100) {
+      if (data.presetIdx >= 200) {
+        // Dilemma audio: index = 200 + dilemmaId * 10 + choiceId
+        const dilemmaIdx = data.presetIdx - 200;
+        const dilemmaId = Math.floor(dilemmaIdx / 10);
+        const choiceId = dilemmaIdx % 10;
+        presetId = `dilemma-${dilemmaId}-${choiceId}`;
+      } else if (data.presetIdx >= 100) {
         presetId = `quick-${data.presetIdx - 100}`;
       } else {
         preset = PRESETS[data.presetIdx];
@@ -1658,6 +1757,31 @@ export function ControleAudio({
                   </div>
                 );
               })}
+            </div>
+          </div>
+
+          {/* Dilemma TTS Buttons */}
+          <div className="sc-dilemmas">
+            <label className="sc-input-label">REPONSES DILEMMES (TTS)</label>
+            <div className="sc-dilemma-grid">
+              {DILEMMA_CHOICES.map((dilemma) => (
+                <div key={dilemma.id} className="sc-dilemma-row">
+                  <span className="sc-dilemma-label">{dilemma.label}</span>
+                  <div className="sc-dilemma-choices">
+                    {dilemma.choices.map((choice) => (
+                      <button
+                        key={choice.id}
+                        className="sc-dilemma-btn"
+                        onClick={() => playText(choice.ttsDescription, "aria")}
+                        title={choice.ttsDescription}
+                        disabled={isGenerating || isApiPlaying}
+                      >
+                        {choice.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
 

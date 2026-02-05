@@ -685,6 +685,93 @@
   color: #a855f7;
 }
 
+/* === Dilemma Audio Buttons === */
+.sc-dilemmas {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sc-dilemma-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sc-dilemma-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  border-radius: 4px;
+}
+
+.sc-dilemma-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: rgba(245, 158, 11, 0.8);
+  min-width: 140px;
+  letter-spacing: 0.5px;
+}
+
+.sc-dilemma-choices {
+  display: flex;
+  gap: 8px;
+  flex: 1;
+}
+
+.sc-dilemma-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  border-radius: 4px;
+  color: rgba(255, 255, 255, 0.7);
+  font-family: inherit;
+  font-size: 0.72rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+}
+
+.sc-dilemma-btn:hover {
+  border-color: rgba(245, 158, 11, 0.5);
+  background: rgba(245, 158, 11, 0.08);
+  color: #f59e0b;
+}
+
+.sc-dilemma-btn.playing {
+  border-color: #f59e0b;
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.2);
+}
+
+.sc-dilemma-btn.paused {
+  border-color: rgba(245, 158, 11, 0.5);
+  background: rgba(245, 158, 11, 0.08);
+}
+
+.sc-dilemma-reset {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  margin-left: 4px;
+  color: rgba(245, 158, 11, 0.5);
+  transition: color 0.2s;
+}
+
+.sc-dilemma-reset:hover {
+  color: #f59e0b;
+}
+
 /* === Ambient Sounds (Noisli style) === */
 .sc-ambient {
   display: flex;
