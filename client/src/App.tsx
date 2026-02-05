@@ -408,6 +408,9 @@ function App() {
   // Global reset dialog
   const [showGlobalResetDialog, setShowGlobalResetDialog] = useState(false);
 
+  // Phase 5 (Prise de contrôle) launch state
+  const [isAriaLaunching, setIsAriaLaunching] = useState(false);
+
   // Game timer (synchronized with Map infection start)
   const [gameStartTime, setGameStartTime] = useState<number | null>(null);
   const [elapsedTime, setElapsedTime] = useState(0);
@@ -689,6 +692,34 @@ function App() {
     [sendCommand]
   );
 
+  // Handle Phase 5 (Prise de contrôle) launch - triggers audio, ARIA animation, map infection, and sidequest password
+  const handleLaunchAria = useCallback(async () => {
+    setIsAriaLaunching(true);
+    addEvent("action", "Lancement Phase 5 - Prise de contrôle", undefined, "info");
+
+    // 1. Play phase-5 audio (preset index 6 in PRESETS array)
+    socket.emit("audio:play-preset", { presetIdx: 6, file: "phase-5.mp3" });
+
+    // 2. Enable ARIA speaking animation
+    await sendCommand("aria", "enable_speaking");
+
+    // 3. Enable ARIA evil mode
+    await sendCommand("aria", "enable_evil");
+
+    // 4. Start map infection
+    await sendCommand("infection-map", "start_infection");
+
+    // 5. Show password on sidequest (enter_solution action)
+    await sendCommand("sidequest", "enter_solution");
+
+    addEvent("action", "Phase 5 lancée avec succès", undefined, "success");
+
+    // Reset launching state after a delay
+    setTimeout(() => {
+      setIsAriaLaunching(false);
+    }, 3000);
+  }, [sendCommand, addEvent]);
+
   const handleActionClick = useCallback(
     async (
       instances: ConnectedGame[],
@@ -821,7 +852,11 @@ function App() {
 
       <main className="controls">
         {activeTab === "sound_control" ? (
-          <ControleAudio audioPlayers={audioPlayers} />
+          <ControleAudio
+            audioPlayers={audioPlayers}
+            onLaunchAria={handleLaunchAria}
+            isAriaLaunching={isAriaLaunching}
+          />
         ) : activeGroup ? (
           <div className="game-panel">
             {/* Instance cards */}
