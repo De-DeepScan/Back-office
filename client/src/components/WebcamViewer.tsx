@@ -164,6 +164,13 @@ function CameraFeed({
           className={`camera-status-dot ${online ? "online" : "offline"}`}
         />
         {label}
+        <button
+          className="camera-reload-btn"
+          onClick={requestOffer}
+          title="Recharger le flux"
+        >
+          ↻
+        </button>
       </div>
       <div className="camera-viewport">
         {status !== "connected" && (
