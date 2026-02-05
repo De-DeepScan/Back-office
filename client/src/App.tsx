@@ -395,7 +395,7 @@ function App() {
   const [customMessage, setCustomMessage] = useState("");
   const [isMessageSending, setIsMessageSending] = useState(false);
   const [messageTimeRemaining, setMessageTimeRemaining] = useState(0);
-  const { playText, isGenerating: ttsGenerating } = useTTS("francois");
+  const { playText, isGenerating: ttsGenerating } = useTTS("john");
 
   // Global reset dialog
   const [showGlobalResetDialog, setShowGlobalResetDialog] = useState(false);
