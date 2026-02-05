@@ -140,7 +140,16 @@ const MESSAGERIE_PRESETS: { category: string; messages: string[] }[] = [
   },
   {
     category: "Carnet sur bureau",
-    messages: ["Le carnet contient un indice vital."],
+    messages: [
+      "Le carnet contient un indice vital.",
+      "Vous devez trouver le mot de passe pour accéder aux neurones d'ARIA, je me souviens avoir laissé un indice au code dans le carnet.",
+    ],
+  },
+  {
+    category: "Explication des stations",
+    messages: [
+      "J'ai besoin de 3 personnes pour être aux stations où se trouvent les écrans. À la station située à droite d'ARIA, vous devez terminer ces mini-hack le plus rapidement possible. À la station en face de l'ARIA, vous devez débloquer les neurones en complétant les labyrinthes. À gauche d'ARIA, vous devez débloquer des codes pour empêcher ARIA de protéger ses neurones. Je vous souhaite bonne chance à tous, pour le bien de l'humanité.",
+    ],
   },
   {
     category: "Écrans",
