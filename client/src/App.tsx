@@ -19,13 +19,8 @@ import { ControleAudio } from "./components/ControleAudio";
 import { WebcamViewer } from "./components/WebcamViewer";
 import { socket, API_URL } from "./socket";
 import { useTTS } from "./hooks/useTTS";
-
 // Preset index for "Presentation IA" audio
 const PRESENTATION_IA_PRESET_IDX = 3; // phase-2-presentation-ia.mp3
-
-// Preset index for "Presentation IA" audio
-const PRESENTATION_IA_PRESET_IDX = 3; // phase-2-presentation-ia.mp3
-
 type ActionStatus = "idle" | "loading" | "success" | "error";
 
 interface GameAction {
