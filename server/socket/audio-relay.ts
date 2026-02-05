@@ -5,17 +5,24 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// Events that just relay without modification
-const AUDIO_EVENTS_RELAY = [
-  "audio:stop-ambient",
-  "audio:volume-ambient",
-  "audio:set-ambient-volume",
+// Game ID that only receives ambient/spotify (BFM/JT on mappemonde)
+const JT_GAME_ID = "infection-map";
+
+// Voice events: ARIA presets, TTS — routed to audio-players:voice (excludes JT)
+const AUDIO_EVENTS_VOICE = [
   "audio:pause-preset",
   "audio:resume-preset",
   "audio:seek-preset",
   "audio:stop-preset",
   "audio:play-tts",
   "audio:volume-ia",
+] as const;
+
+// General events: ambient, master — routed to all audio-players
+const AUDIO_EVENTS_ALL = [
+  "audio:stop-ambient",
+  "audio:volume-ambient",
+  "audio:set-ambient-volume",
   "audio:stop-all",
   "audio:master-volume",
 ] as const;
@@ -52,6 +59,13 @@ export function updateAudioPlayerGameId(
     console.log(
       `[audio-relay] Updated audio player gameId: ${socketId} -> ${gameId}`
     );
+
+    // Join voice room if not JT
+    if (gameId !== JT_GAME_ID) {
+      const sock = io.sockets.sockets.get(socketId);
+      sock?.join("audio-players:voice");
+    }
+
     emitAudioStatus(io);
   }
 }
@@ -90,6 +104,11 @@ export function setupAudioRelay(io: Server) {
       // Get gameId from socket.data (set by gamemaster.ts during register)
       const gameKey = socket.data.gameKey as string | undefined;
 
+      // Join voice room (ARIA presets/TTS) unless this is the JT display
+      if (gameKey !== JT_GAME_ID) {
+        socket.join("audio-players:voice");
+      }
+
       audioPlayers.set(socket.id, {
         socketId: socket.id,
         gameId: gameKey ?? null,
@@ -97,7 +116,7 @@ export function setupAudioRelay(io: Server) {
       });
 
       console.log(
-        `[audio-relay] Audio player registered: ${gameKey ?? "unknown"} (${socket.id})`
+        `[audio-relay] Audio player registered: ${gameKey ?? "unknown"} (${socket.id}) [voice: ${gameKey !== JT_GAME_ID}]`
       );
 
       emitAudioStatus(io);
@@ -202,13 +221,12 @@ export function setupAudioRelay(io: Server) {
         `Preset "${payload.file}" (${fileSizeKB}KB) -> ${playerCount} lecteur(s)`
       );
 
-      io.to("audio-players").emit("audio:play-preset", payload);
+      io.to("audio-players:voice").emit("audio:play-preset", payload);
     });
 
-    // Relay other events without modification (with logging for important ones)
-    for (const event of AUDIO_EVENTS_RELAY) {
+    // Voice events → audio-players:voice (excludes JT/mappemonde)
+    for (const event of AUDIO_EVENTS_VOICE) {
       socket.on(event, (payload: unknown) => {
-        // Log TTS events
         if (event === "audio:play-tts") {
           const playerCount = audioPlayers.size;
           emitAudioLog(
@@ -218,11 +236,6 @@ export function setupAudioRelay(io: Server) {
             `Message TTS → ${playerCount} lecteur(s)`
           );
         }
-        // Log stop events
-        if (event === "audio:stop-ambient") {
-          const p = payload as { soundId?: string };
-          emitAudioLog(io, "ambient", "stop", `Arrêt ambiance "${p.soundId}"`);
-        }
         if (event === "audio:stop-preset") {
           emitAudioLog(io, "preset", "stop", "Arrêt preset");
         }
@@ -231,6 +244,18 @@ export function setupAudioRelay(io: Server) {
         }
         if (event === "audio:resume-preset") {
           emitAudioLog(io, "preset", "play", "Resume preset");
+        }
+
+        io.to("audio-players:voice").emit(event, payload);
+      });
+    }
+
+    // General events → all audio-players (including JT)
+    for (const event of AUDIO_EVENTS_ALL) {
+      socket.on(event, (payload: unknown) => {
+        if (event === "audio:stop-ambient") {
+          const p = payload as { soundId?: string };
+          emitAudioLog(io, "ambient", "stop", `Arrêt ambiance "${p.soundId}"`);
         }
 
         io.to("audio-players").emit(event, payload);
