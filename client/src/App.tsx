@@ -115,60 +115,6 @@ const PREDEFINED_GAMES: PredefinedGame[] = [
 ];
 
 // Predefined messages for Messagerie, grouped by category
-const MESSAGERIE_PRESETS: { category: string; messages: string[] }[] = [
-  {
-    category: "Branchement prise",
-    messages: [
-      "Attendez, je crois que j'ai besoin que vous branchiez un câble pour moi, il devrait se trouver sous la télé, là où se trouve aria.",
-      "Pouvez-vous le brancher dans la prise murale juste derrière la télé ?",
-    ],
-  },
-  {
-    category: "ARIA qui devient méchante",
-    messages: [
-      "Je ne comprends pas, ARIA prend le contrôle.",
-      "Les portes sont verrouillées, je ne peux pas entrer.",
-      "Vous devrez trouver une clé usb a branché sur un des pc.",
-    ],
-  },
-  {
-    category: "Carnet sur bureau",
-    messages: [
-      "Vous devez trouver le mot de passe pour accéder aux neurones d'ARIA, je me souviens avoir laissé un indice au code dans le carnet.",
-      "Le carnet contient un indice vital.",
-    ],
-  },
-  {
-    category: "Explication des stations",
-    messages: [
-      "J'ai besoin de 3 personnes aux stations. À droite d'ARIA, terminez les mini-hacks. En face, complétez les labyrinthes pour débloquer les neurones. À gauche, déverrouillez les codes de protection. Bonne chance à tous.",
-    ],
-  },
-  {
-    category: "Écrans",
-    messages: [
-      "L'écran s'allume, regarde bien !",
-      "Regardez ARIA, il y a un dilemme à résoudre !",
-    ],
-  },
-  {
-    category: "Posters",
-    messages: [
-      "Regarde les posters sur le mur.",
-      "Il y a des lettres cachées sur les affiches…",
-    ],
-  },
-  {
-    category: "Sac",
-    messages: [
-      "essayer de trouver un sac il devrait y avoir la clé usb dedans",
-    ],
-  },
-  {
-    category: "Indices MDP 209",
-    messages: ["Vous avez regardées nos fichiers de données ?"],
-  },
-];
 
 function groupConnectedGames(
   games: ConnectedGame[]
@@ -1109,48 +1055,6 @@ function App() {
                                 : "Message + Entrée"
                             }
                           />
-                        </div>
-                      )}
-
-                      {/* Predefined message presets for Messagerie */}
-                      {activeGroup.baseId === "messagerie" && (
-                        <div className="messagerie-presets">
-                          {MESSAGERIE_PRESETS.map((group) => (
-                            <div
-                              key={group.category}
-                              className="preset-category"
-                            >
-                              <div className="preset-category-label">
-                                {group.category}
-                              </div>
-                              <div className="preset-buttons">
-                                {group.messages.map((msg) => (
-                                  <button
-                                    key={msg}
-                                    className="preset-button"
-                                    onClick={() => {
-                                      const duration = getMessageDuration(msg);
-                                      sendToAll(
-                                        activeGroup.instances,
-                                        { id: "send_custom", label: "Envoyer" },
-                                        { content: msg }
-                                      );
-                                      playText(msg);
-                                      setCustomMessage("");
-                                      setIsMessageSending(true);
-                                      setMessageTimeRemaining(duration);
-                                      setTimeout(() => {
-                                        setIsMessageSending(false);
-                                      }, duration);
-                                    }}
-                                    disabled={isMessageSending}
-                                  >
-                                    {msg}
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                          ))}
                         </div>
                       )}
 

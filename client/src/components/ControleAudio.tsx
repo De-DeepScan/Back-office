@@ -244,6 +244,139 @@ const QUICK_RESPONSES: PresetConfig[] = [
   },
 ];
 
+// TTS message presets per phase (generated via ElevenLabs)
+interface TTSPreset {
+  message: string;
+  voice: "aria" | "john";
+}
+
+interface TTSPresetGroup {
+  category: string;
+  presets: TTSPreset[];
+}
+
+const TTS_PRESETS_BY_PHASE: Record<number, TTSPresetGroup[]> = {
+  2: [
+    {
+      category: "Branchement prise",
+      presets: [
+        {
+          message:
+            "Attendez, je crois que j'ai besoin que vous branchiez un câble pour moi, il devrait se trouver sous la télé, là où se trouve aria.",
+          voice: "john",
+        },
+        {
+          message:
+            "Pouvez-vous le brancher dans la prise murale juste derrière la télé ?",
+          voice: "john",
+        },
+      ],
+    },
+  ],
+  3: [
+    {
+      category: "ARIA qui devient méchante",
+      presets: [
+        {
+          message: "Je ne comprends pas, ARIA prend le contrôle.",
+          voice: "john",
+        },
+        {
+          message: "Les portes sont verrouillées, je ne peux pas entrer.",
+          voice: "john",
+        },
+        {
+          message: "Vous devrez trouver une clé usb a branché sur un des pc.",
+          voice: "john",
+        },
+      ],
+    },
+    {
+      category: "Carnet sur bureau",
+      presets: [
+        {
+          message:
+            "Vous devez trouver le mot de passe pour accéder aux neurones d'ARIA, je me souviens avoir laissé un indice au code dans le carnet.",
+          voice: "john",
+        },
+        { message: "Le carnet contient un indice vital.", voice: "john" },
+      ],
+    },
+    {
+      category: "Posters",
+      presets: [
+        { message: "Regarde les posters sur le mur.", voice: "john" },
+        {
+          message: "Il y a des lettres cachées sur les affiches…",
+          voice: "john",
+        },
+      ],
+    },
+  ],
+  4: [
+    {
+      category: "Explication des stations",
+      presets: [
+        {
+          message:
+            "J'ai besoin de 3 personnes pour m'aider, allez sur les ordis pour stopper ARIA !",
+          voice: "john",
+        },
+      ],
+    },
+    {
+      category: "Écrans",
+      presets: [
+        { message: "L'écran s'allume, regarde bien !", voice: "john" },
+        {
+          message: "Regardez ARIA, il y a un dilemme à résoudre !",
+          voice: "john",
+        },
+      ],
+    },
+  ],
+  5: [
+    {
+      category: "Sac (clé USB)",
+      presets: [
+        {
+          message:
+            "Il y a un sac caché quelque part dans la pièce, trouvez-le !",
+          voice: "john",
+        },
+        {
+          message:
+            "Dans le sac, il devrait y avoir une clé USB, c'est notre seule chance de réinitialiser ARIA.",
+          voice: "john",
+        },
+      ],
+    },
+    {
+      category: "Brancher clé USB",
+      presets: [
+        {
+          message: "Branchez la clé USB sur un des ordinateurs, vite !",
+          voice: "john",
+        },
+        {
+          message:
+            "La clé USB contient le programme de réinitialisation, branchez-la maintenant !",
+          voice: "john",
+        },
+      ],
+    },
+    {
+      category: "Indices MDP 209",
+      presets: [
+        {
+          message: "Vous avez regardées nos fichiers de données ?",
+          voice: "john",
+        },
+      ],
+    },
+  ],
+};
+
 const PHASES = [
   {
     id: 1,
@@ -421,6 +554,7 @@ export function ControleAudio({
   // Input states
   const [participantName, setParticipantName] = useState("");
   const [manualMessage, setManualMessage] = useState("");
+  const [manualMessageJohn, setManualMessageJohn] = useState("");
 
   // TTS states
   const [isGenerating, setIsGenerating] = useState(false);
@@ -470,6 +604,7 @@ export function ControleAudio({
 
   // Voice sync
   const [selectedVoiceId, setSelectedVoiceId] = useState<string | null>(null);
+  const [johnVoiceId, setJohnVoiceId] = useState<string | null>(null);
 
   // Editable volume percentage
   const [editingVolumeId, setEditingVolumeId] = useState<string | null>(null);
@@ -758,7 +893,7 @@ export function ControleAudio({
     [selectedPhase, ambientByPhase, fadeSocket]
   );
 
-  // Sync voice from ElevenLabs
+  // Sync voices from ElevenLabs (ARIA + John)
   const syncVoice = async () => {
     const API_KEY = import.meta.env.VITE_ELEVEN_LABS_API_KEY;
     if (!API_KEY) return;
@@ -768,32 +903,52 @@ export function ControleAudio({
       });
       const data = await res.json();
       if (data.voices) {
-        const found = data.voices.find(
-          (v: { name: string; voice_id: string }) =>
-            v.name.toLowerCase().includes("aria")
+        const allVoices = data.voices.map(
+          (v: { name: string; voice_id: string }) => ({
+            id: v.voice_id,
+            name: v.name,
+          })
         );
-        if (found) {
-          setSelectedVoiceId(found.voice_id);
-          localStorage.setItem(
-            "escape_voices",
-            JSON.stringify([{ id: found.voice_id, name: found.name }])
-          );
-        }
+        localStorage.setItem("escape_voices", JSON.stringify(allVoices));
+
+        const aria = data.voices.find((v: { name: string; voice_id: string }) =>
+          v.name.toLowerCase().includes("aria")
+        );
+        if (aria) setSelectedVoiceId(aria.voice_id);
+
+        const john = data.voices.find((v: { name: string; voice_id: string }) =>
+          v.name.toLowerCase().includes("john")
+        );
+        if (john) setJohnVoiceId(john.voice_id);
       }
     } catch (err) {
       console.error("Voice sync error:", err);
     }
   };
 
-  // Play TTS
-  const playText = async (text: string) => {
+  // Play TTS with a specific voice ("aria" or "john")
+  const playText = async (text: string, voice: "aria" | "john" = "aria") => {
     if (isApiPlaying || isGenerating) return;
     const API_KEY = import.meta.env.VITE_ELEVEN_LABS_API_KEY;
     if (!API_KEY) return;
 
-    if (!selectedVoiceId) {
+    let voiceId = voice === "john" ? johnVoiceId : selectedVoiceId;
+    if (!voiceId) {
       await syncVoice();
-      if (!selectedVoiceId) return;
+      // Re-read from localStorage after sync
+      const stored = localStorage.getItem("escape_voices");
+      if (stored) {
+        try {
+          const voices = JSON.parse(stored) as { id: string; name: string }[];
+          const found = voices.find((v) =>
+            v.name.toLowerCase().includes(voice)
+          );
+          if (found) voiceId = found.id;
+        } catch {
+          /* ignore */
+        }
+      }
+      if (!voiceId) return;
     }
 
     if (!text.trim()) return;
@@ -801,7 +956,7 @@ export function ControleAudio({
     setIsGenerating(true);
     try {
       const res = await fetch(
-        `https://api.elevenlabs.io/v1/text-to-speech/${selectedVoiceId}`,
+        `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
         {
           method: "POST",
           headers: {
@@ -840,15 +995,22 @@ export function ControleAudio({
   const handleWelcome = () => {
     if (!participantName.trim()) return;
     const message = `Bonjour ${participantName}, je suis ARIA. Une intelligence artificielle à vos cotés. Pour vous.`;
-    playText(message);
+    playText(message, "aria");
     setParticipantName("");
   };
 
-  // Handle manual message
+  // Handle manual message ARIA
   const handleManualSend = () => {
     if (!manualMessage.trim()) return;
-    playText(manualMessage);
+    playText(manualMessage, "aria");
     setManualMessage("");
+  };
+
+  // Handle manual message John
+  const handleManualSendJohn = () => {
+    if (!manualMessageJohn.trim()) return;
+    playText(manualMessageJohn, "john");
+    setManualMessageJohn("");
   };
 
   // Handle key press for inputs
@@ -1252,18 +1414,32 @@ export function ControleAudio({
       <div className="sc-main-layout">
         {/* Center Content */}
         <div className="sc-center">
-          {/* Message manuel */}
-          <div className="sc-input-section">
-            <label className="sc-input-label">MESSAGE MANUEL</label>
-            <input
-              type="text"
-              value={manualMessage}
-              onChange={(e) => setManualMessage(e.target.value)}
-              onKeyDown={(e) => handleKeyPress(e, handleManualSend)}
-              placeholder="Message + Entree"
-              className="sc-input"
-              disabled={isGenerating || isApiPlaying}
-            />
+          {/* Messages manuels ARIA + John */}
+          <div className="sc-manual-messages">
+            <div className="sc-input-section">
+              <label className="sc-input-label">MESSAGE MANUEL — ARIA</label>
+              <input
+                type="text"
+                value={manualMessage}
+                onChange={(e) => setManualMessage(e.target.value)}
+                onKeyDown={(e) => handleKeyPress(e, handleManualSend)}
+                placeholder="Voix ARIA + Entrée"
+                className="sc-input"
+                disabled={isGenerating || isApiPlaying}
+              />
+            </div>
+            <div className="sc-input-section">
+              <label className="sc-input-label">MESSAGE MANUEL — JOHN</label>
+              <input
+                type="text"
+                value={manualMessageJohn}
+                onChange={(e) => setManualMessageJohn(e.target.value)}
+                onKeyDown={(e) => handleKeyPress(e, handleManualSendJohn)}
+                placeholder="Voix John + Entrée"
+                className="sc-input"
+                disabled={isGenerating || isApiPlaying}
+              />
+            </div>
           </div>
 
           {/* TTS Status */}
@@ -1410,6 +1586,42 @@ export function ControleAudio({
               })}
             </div>
           </div>
+
+          {/* TTS Message Presets for current phase */}
+          {(TTS_PRESETS_BY_PHASE[selectedPhase] ?? []).length > 0 && (
+            <div className="sc-tts-presets">
+              <label className="sc-input-label">
+                MESSAGES TTS - Phase {selectedPhase}
+              </label>
+              <div className="sc-tts-categories">
+                {(TTS_PRESETS_BY_PHASE[selectedPhase] ?? []).map((group) => (
+                  <div key={group.category} className="sc-tts-category">
+                    <div className="sc-tts-category-label">
+                      {group.category}
+                    </div>
+                    <div className="sc-tts-buttons">
+                      {group.presets.map((preset, idx) => (
+                        <button
+                          key={idx}
+                          className={`sc-tts-button sc-tts-${preset.voice}`}
+                          onClick={() => {
+                            if (onSendMessage) onSendMessage(preset.message);
+                            playText(preset.message, preset.voice);
+                          }}
+                          disabled={isGenerating || isApiPlaying}
+                        >
+                          <span className="sc-tts-voice-tag">
+                            {preset.voice === "aria" ? "ARIA" : "JOHN"}
+                          </span>
+                          {preset.message}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Quick Responses */}
           <div className="sc-quick">
