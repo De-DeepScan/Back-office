@@ -770,6 +770,11 @@ function App() {
     // Stop all audio
     socket.emit("audio:stop-all");
 
+    // Reset audio phase progression (keep presets)
+    localStorage.setItem("sc_current_phase", "1");
+    localStorage.setItem("sc_completed_phases", "[]");
+    localStorage.setItem("sc_selected_phase", "1");
+
     // Reset timer
     setGameStartTime(null);
     setElapsedTime(0);

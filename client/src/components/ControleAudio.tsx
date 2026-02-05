@@ -851,6 +851,46 @@ export function ControleAudio({ audioPlayers }: ControleAudioProps) {
     [selectedPhase, ambientByPhase, volumesByPhase]
   );
 
+  // Start phase 1 sounds from stopped state (after global reset)
+  const startPhase1Sounds = useCallback(() => {
+    const phase1States = ambientByPhase[1] ?? {};
+    const phase1AmbientMaster = volumesByPhase[1]?.ambientMaster ?? 0.5;
+
+    for (const sound of AMBIENT_SOUNDS) {
+      const state = phase1States[sound.id];
+      if (state?.active) {
+        socket.emit("audio:play-ambient", {
+          soundId: sound.id,
+          file: sound.file,
+          volume: (state.volume ?? 0.1) * phase1AmbientMaster,
+        });
+      }
+    }
+
+    // Sync local state
+    setAmbientStates(phase1States);
+  }, [ambientByPhase, volumesByPhase]);
+
+  // Listen for global reset (audio:stop-all) to reset phases and restart phase 1 sounds
+  useEffect(() => {
+    const handleStopAll = () => {
+      // Reset phase state to initial
+      setCurrentPhase(1);
+      setCompletedPhases([]);
+      setSelectedPhase(1);
+
+      // Restart phase 1 sounds after a short delay (let stop-all complete first)
+      setTimeout(() => {
+        startPhase1Sounds();
+      }, 500);
+    };
+
+    socket.on("audio:stop-all", handleStopAll);
+    return () => {
+      socket.off("audio:stop-all", handleStopAll);
+    };
+  }, [startPhase1Sounds]);
+
   // Toggle ambient sound
   const toggleAmbient = useCallback(
     (sound: AmbientSoundConfig) => {
