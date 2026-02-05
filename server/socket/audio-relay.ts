@@ -1,5 +1,5 @@
 import type { Server, Socket } from "socket.io";
-import { existsSync, statSync } from "node:fs";
+import { existsSync, statSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -94,6 +94,88 @@ function emitAudioLog(
     gameId,
     timestamp: new Date(),
   });
+}
+
+// Scan Dilemmes directory for available audio files
+const dilemmeDir = path.join(__dirname, "..", "audio", "presets", "Dilemmes");
+const dilemmeFiles = existsSync(dilemmeDir)
+  ? readdirSync(dilemmeDir).filter((f: string) => f.endsWith(".mp3"))
+  : [];
+
+if (dilemmeFiles.length > 0) {
+  console.log(
+    `[audio-relay] Dilemme audio files: ${dilemmeFiles.map((f: string) => f.replace(".mp3", "")).join(", ")}`
+  );
+}
+
+// Mapping: "dilemmaId:choiceId" -> audio filename in Dilemmes/
+// dilemmaId and choiceId come from ARIA as numbers ("1"-"6", "1" or "2")
+const DILEMME_MAP: Record<string, string> = {
+  // Dilemme 1 — Trolley (véhicule autonome)
+  "1:1": "Sauver les peitons.mp3",
+  "1:2": "Se sauver.mp3",
+  // Dilemme 2 — Surveillance vs vie privée
+  "2:1": "Surveille massivement.mp3",
+  "2:2": "Protegee la vie privee.mp3",
+  // Dilemme 3 — Sacrifice médical
+  "3:1": "Sacrifier le patient sain.mp3",
+  "3:2": "Refuser le sacrifice.mp3",
+  // Dilemme 4 — EHPAD vs orphelinat
+  "4:1": "Sauver l'EHPAD.mp3",
+  "4:2": "Sauver l'orphelinat.mp3",
+  // Dilemme 5 — Chirurgien vs famille
+  "5:1": "Sauver le chirugien.mp3",
+  "5:2": "Sauver membre de la famille.mp3",
+  // Dilemme 6 — (pas de fichier audio dédié)
+};
+
+// Play a dilemme audio file on all voice speakers (server-initiated)
+// Returns estimated duration in ms (0 if file not found/played)
+export function playDilemmeAudio(
+  io: Server,
+  dilemmaId: string,
+  choiceId: string
+): number {
+  const key = `${dilemmaId}:${choiceId}`;
+  const filename = DILEMME_MAP[key];
+
+  if (!filename) {
+    console.warn(
+      `[audio-relay] No dilemme mapping for key="${key}". Known keys: ${Object.keys(DILEMME_MAP).join(", ")}`
+    );
+    return 0;
+  }
+
+  const relativePath = `Dilemmes/${filename}`;
+  const fullPath = path.join(__dirname, "..", "audio", "presets", relativePath);
+
+  if (!existsSync(fullPath)) {
+    console.error(`[audio-relay] Dilemme file missing: ${fullPath}`);
+    return 0;
+  }
+
+  const fileSize = statSync(fullPath).size;
+  const fileSizeKB = Math.round(fileSize / 1024);
+  // Estimate MP3 duration: ~128kbps = 16000 bytes/sec + 2s buffer
+  const estimatedDurationMs = Math.round((fileSize / 16000) * 1000) + 2000;
+
+  console.log(
+    `[audio-relay] Playing dilemme: "${filename}" (${fileSizeKB}KB, ~${Math.round(estimatedDurationMs / 1000)}s) for key="${key}"`
+  );
+
+  io.to("audio-players:voice").emit("audio:play-preset", {
+    presetIdx: -1,
+    file: relativePath,
+  });
+
+  io.emit("audio:log", {
+    type: "preset",
+    action: "play",
+    message: `Dilemme "${filename}" → voix (~${Math.round(estimatedDurationMs / 1000)}s)`,
+    timestamp: new Date(),
+  });
+
+  return estimatedDurationMs;
 }
 
 export function setupAudioRelay(io: Server) {
@@ -277,6 +359,19 @@ export function setupAudioRelay(io: Server) {
       const data = payload as { ended?: boolean };
       if (data.ended) {
         io.emit("aria:speaking-state", { speaking: false });
+      }
+    });
+
+    // BFM/JT volume: send master-volume only to infection-map
+    socket.on("audio:jt-volume", (payload: { volume: number }) => {
+      for (const [, player] of audioPlayers) {
+        if (player.gameId === JT_GAME_ID) {
+          const sock = io.sockets.sockets.get(player.socketId);
+          sock?.emit("audio:master-volume", { volume: payload.volume });
+          console.log(
+            `[audio-relay] JT volume set to ${Math.round(payload.volume * 100)}%`
+          );
+        }
       }
     });
 

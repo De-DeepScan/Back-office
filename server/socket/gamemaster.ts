@@ -1,5 +1,5 @@
 import type { Server, Socket } from "socket.io";
-import { updateAudioPlayerGameId } from "./audio-relay.js";
+import { updateAudioPlayerGameId, playDilemmeAudio } from "./audio-relay.js";
 
 interface GameAction {
   id: string;
@@ -301,24 +301,49 @@ export function setupGamemaster(io: Server): void {
 
         // Relay dilemma_response from ARIA to Labyrinth and Map
         if (data.name === "dilemma_response" && key === "aria") {
-          const { dilemmaId, choiceId } = data.data as {
+          const { dilemmaId, choiceId, choiceDescription } = data.data as {
             dilemmaId: string;
             choiceId: string;
+            choiceDescription?: string;
           };
 
           console.log(
-            `[relay] Dilemma choice: dilemma=${dilemmaId}, choice=${choiceId}`
+            `[relay] Dilemma choice: dilemma=${dilemmaId}, choice=${choiceId}, desc="${choiceDescription ?? ""}"`
           );
+
+          // Play ARIA voice for this dilemma choice on all speakers (except JT)
+          const audioDurationMs = playDilemmeAudio(io, dilemmaId, choiceId);
+          if (!audioDurationMs) {
+            console.warn(
+              `[relay] No audio file matched for dilemma=${dilemmaId} choice=${choiceId}`
+            );
+          }
 
           // Resume Labyrinth (choice is made, game can continue)
           sendCommand(io, "labyrinthe:explorer", "dilemma_end", {});
           sendCommand(io, "labyrinthe:protector", "dilemma_end", {});
 
-          // Show video on Map
-          sendCommand(io, "infection-map", "show_dilemme", {
-            dilemme_id: dilemmaId,
-            choice_id: choiceId,
-          });
+          // Show video on Map AFTER ARIA voice finishes
+          if (audioDurationMs > 0) {
+            console.log(
+              `[relay] Delaying show_dilemme by ${Math.round(audioDurationMs / 1000)}s (waiting for ARIA voice)`
+            );
+            setTimeout(() => {
+              sendCommand(io, "infection-map", "show_dilemme", {
+                dilemme_id: dilemmaId,
+                choice_id: choiceId,
+              });
+              console.log(
+                `[relay] show_dilemme sent to infection-map after ARIA voice`
+              );
+            }, audioDurationMs);
+          } else {
+            // No audio file — show video immediately
+            sendCommand(io, "infection-map", "show_dilemme", {
+              dilemme_id: dilemmaId,
+              choice_id: choiceId,
+            });
+          }
         }
       }
     );
