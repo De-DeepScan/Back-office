@@ -20,8 +20,8 @@ import { WebcamViewer } from "./components/WebcamViewer";
 import { socket, API_URL } from "./socket";
 import { useTTS } from "./hooks/useTTS";
 
-// Preset index for "Presentation IA" audio
-const PRESENTATION_IA_PRESET_IDX = 3; // phase-2-presentation-ia.mp3
+// Preset index for "Phase 5" audio (Prise de controle)
+const PHASE_5_PRESET_IDX = 6; // phase-5.mp3
 type ActionStatus = "idle" | "loading" | "success" | "error";
 
 interface GameAction {
@@ -776,10 +776,10 @@ function App() {
     addEvent("action", "Lancement ARIA en cours...", undefined, "info");
 
     try {
-      // 1. Play presentation IA audio
+      // 1. Play Phase 5 audio
       socket.emit("audio:play-preset", {
-        presetIdx: PRESENTATION_IA_PRESET_IDX,
-        file: "phase-2-presentation-ia.mp3",
+        presetIdx: PHASE_5_PRESET_IDX,
+        file: "phase-5.mp3",
       });
 
       // 2. Send commands to all games in parallel
@@ -820,10 +820,10 @@ function App() {
     addEvent("action", "Lancement ARIA en cours...", undefined, "info");
 
     try {
-      // 1. Play presentation IA audio
+      // 1. Play Phase 5 audio
       socket.emit("audio:play-preset", {
-        presetIdx: PRESENTATION_IA_PRESET_IDX,
-        file: "phase-2-presentation-ia.mp3",
+        presetIdx: PHASE_5_PRESET_IDX,
+        file: "phase-5.mp3",
       });
 
       // 2. Send commands to all games in parallel
@@ -917,7 +917,11 @@ function App() {
 
       <main className="controls">
         {activeTab === "sound_control" ? (
-          <ControleAudio audioPlayers={audioPlayers} />
+          <ControleAudio
+            audioPlayers={audioPlayers}
+            onLaunchAria={handleLaunchAria}
+            isAriaLaunching={isAriaLaunching}
+          />
         ) : activeGroup ? (
           <div className="game-panel">
             {/* Instance cards */}
