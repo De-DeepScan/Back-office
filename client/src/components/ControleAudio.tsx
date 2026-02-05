@@ -456,9 +456,9 @@ export function ControleAudio({
   // Current phase ambient states (derived)
   const ambientStates = ambientByPhase[selectedPhase] ?? {};
 
-  // BFM/JT volume (persisted)
-  const [jtVolume, setJtVolume] = useState(() => {
-    const stored = localStorage.getItem("sc_jt_volume");
+  // John volume (persisted)
+  const [johnVolume, setJohnVolume] = useState(() => {
+    const stored = localStorage.getItem("sc_john_volume");
     return stored ? parseFloat(stored) : 0.5;
   });
 
@@ -527,14 +527,14 @@ export function ControleAudio({
     };
   }, []);
 
-  const handleJtVolume = useCallback(
+  const handleJohnVolume = useCallback(
     (volume: number) => {
-      setJtVolume(volume);
-      localStorage.setItem("sc_jt_volume", String(volume));
-      const fromVol = lastEmittedRef.current.get("__jt__") ?? volume;
+      setJohnVolume(volume);
+      localStorage.setItem("sc_john_volume", String(volume));
+      const fromVol = lastEmittedRef.current.get("__john__") ?? volume;
       fadeSocket(
-        "__jt__",
-        "audio:jt-volume",
+        "__john__",
+        "audio:volume-john",
         (v) => ({ volume: v }),
         fromVol,
         volume,
@@ -1518,7 +1518,11 @@ export function ControleAudio({
             value={ambientMaster}
             onChange={handleAmbientMaster}
           />
-          <VolumeFader label="BFM" value={jtVolume} onChange={handleJtVolume} />
+          <VolumeFader
+            label="John"
+            value={johnVolume}
+            onChange={handleJohnVolume}
+          />
         </div>
       </div>
     </div>

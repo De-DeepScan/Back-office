@@ -388,17 +388,12 @@ export function setupAudioRelay(io: Server) {
       }
     });
 
-    // BFM/JT volume: send master-volume only to infection-map
-    socket.on("audio:jt-volume", (payload: { volume: number }) => {
-      for (const [, player] of audioPlayers) {
-        if (player.gameId === JT_GAME_ID) {
-          const sock = io.sockets.sockets.get(player.socketId);
-          sock?.emit("audio:master-volume", { volume: payload.volume });
-          console.log(
-            `[audio-relay] JT volume set to ${Math.round(payload.volume * 100)}%`
-          );
-        }
-      }
+    // John volume: relay to voice players for TTS volume control
+    socket.on("audio:volume-john", (payload: { volume: number }) => {
+      io.to("audio-players:voice").emit("audio:volume-john", payload);
+      console.log(
+        `[audio-relay] John volume set to ${Math.round(payload.volume * 100)}%`
+      );
     });
 
     // Spotify: backoffice → player
