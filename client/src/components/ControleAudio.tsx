@@ -6,7 +6,7 @@ import {
   type KeyboardEvent,
   type PointerEvent as RPointerEvent,
 } from "react";
-import { socket } from "../socket";
+import { socket, API_URL } from "../socket";
 import {
   Cpu,
   CircuitBoard,
@@ -162,33 +162,69 @@ const AMBIENT_SOUNDS: AmbientSoundConfig[] = [
 
 const QUICK_RESPONSES: PresetConfig[] = [
   {
-    id: "stupid",
-    label: "Questions idiotes",
-    file: "stupid-questions.mp3",
+    id: "random-1",
+    label: "Random 1",
+    file: "random/phase-6-random-1.mp3",
     phase: 0,
   },
   {
-    id: "global-sound-2",
-    label: "Vous avez mis 3 minutes pour trouver un code",
-    file: "global-sound-2.mp3",
+    id: "random-2",
+    label: "Random 2",
+    file: "random/phase-6-random-2.mp3",
     phase: 0,
   },
   {
-    id: "global-sound-3",
-    label: "Google dans Google",
-    file: "global-sound-3.mp3",
+    id: "random-3",
+    label: "Random 3",
+    file: "random/phase-6-random-3.mp3",
     phase: 0,
   },
   {
-    id: "global-sound-4",
-    label: "Captchas",
-    file: "global-sound-4.mp3",
+    id: "random-4",
+    label: "Random 4",
+    file: "random/phase6-random-4.mp3",
     phase: 0,
   },
   {
-    id: "global-sound-5",
-    label: "Mode veille",
-    file: "global-sound-5.mp3",
+    id: "random-5",
+    label: "Random 5",
+    file: "random/phase6-random-5.mp3",
+    phase: 0,
+  },
+  {
+    id: "random-6",
+    label: "Random 6",
+    file: "random/phase6-random-6.mp3",
+    phase: 0,
+  },
+  {
+    id: "indice-affiches-admin",
+    label: "Indice affiches admin",
+    file: "random/Indice affiches admin.mp3",
+    phase: 0,
+  },
+  {
+    id: "indice-fiches-donnees",
+    label: "Indice fiches de donnees",
+    file: "random/Indice fiches de donnees.mp3",
+    phase: 0,
+  },
+  {
+    id: "indice-horloge",
+    label: "Indice Horloge",
+    file: "random/Indice Horloge.mp3",
+    phase: 0,
+  },
+  {
+    id: "indice-post-it",
+    label: "Indice post-it",
+    file: "random/Indice post-it.mp3",
+    phase: 0,
+  },
+  {
+    id: "indice-sac",
+    label: "Indice sac",
+    file: "random/Indice sac.mp3",
     phase: 0,
   },
 ];
@@ -507,6 +543,7 @@ export function ControleAudio({ audioPlayers }: ControleAudioProps) {
       }
 
       if (data.ended) {
+        disableAriaSpeaking();
         setPresetStates((prev) => {
           const next = { ...prev };
           delete next[presetId];
@@ -634,8 +671,12 @@ export function ControleAudio({ audioPlayers }: ControleAudioProps) {
           audioBase64,
           mimeType: blob.type || "audio/mpeg",
         });
+        enableAriaSpeaking();
         setIsApiPlaying(true);
-        setTimeout(() => setIsApiPlaying(false), 5000);
+        setTimeout(() => {
+          setIsApiPlaying(false);
+          disableAriaSpeaking();
+        }, 5000);
       }
     } catch (err) {
       console.error("TTS error:", err);
@@ -670,12 +711,31 @@ export function ControleAudio({ audioPlayers }: ControleAudioProps) {
     }
   };
 
+  // Enable ARIA speaking animation when audio plays
+  const enableAriaSpeaking = useCallback(() => {
+    fetch(`${API_URL}/api/games/aria/command`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "enable_speaking" }),
+    }).catch(() => {});
+  }, []);
+
+  // Disable ARIA speaking animation when audio stops
+  const disableAriaSpeaking = useCallback(() => {
+    fetch(`${API_URL}/api/games/aria/command`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "disable_speaking" }),
+    }).catch(() => {});
+  }, []);
+
   // Toggle preset play/pause
   const togglePreset = useCallback(
     (presetId: string, file: string, idx: number) => {
       const state = presetStates[presetId];
       if (state?.playing) {
         socket.emit("audio:pause-preset", { presetIdx: idx });
+        disableAriaSpeaking();
         setPresetStates((prev) => ({
           ...prev,
           [presetId]: { ...prev[presetId], playing: false },
@@ -683,6 +743,7 @@ export function ControleAudio({ audioPlayers }: ControleAudioProps) {
       } else if (state && state.currentTime > 0) {
         // Resume paused preset
         socket.emit("audio:resume-preset", { presetIdx: idx });
+        enableAriaSpeaking();
         setPresetStates((prev) => ({
           ...prev,
           [presetId]: { ...prev[presetId], playing: true },
@@ -690,6 +751,7 @@ export function ControleAudio({ audioPlayers }: ControleAudioProps) {
       } else {
         // Start new preset
         socket.emit("audio:play-preset", { presetIdx: idx, file });
+        enableAriaSpeaking();
         setPresetStates((prev) => ({
           ...prev,
           [presetId]: {
@@ -706,6 +768,7 @@ export function ControleAudio({ audioPlayers }: ControleAudioProps) {
   // Reset preset: stop and reset to 0 without auto-playing
   const resetPreset = useCallback((presetId: string, idx: number) => {
     socket.emit("audio:stop-preset", { presetIdx: idx });
+    disableAriaSpeaking();
     setPresetStates((prev) => {
       const next = { ...prev };
       delete next[presetId];
