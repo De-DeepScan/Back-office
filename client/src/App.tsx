@@ -169,6 +169,16 @@ const MESSAGERIE_PRESETS: { category: string; messages: string[] }[] = [
   },
 ];
 
+// Descriptions des dilemmes pour lecture TTS (indexées par currentDilemmaIndex)
+const DILEMMA_DESCRIPTIONS: string[] = [
+  "À la veille d'une élection tendue, un candidat d'extrême droite est en tête. En tant qu'arbitre de l'IA, vous devez choisir : manipuler l'opinion pour garantir la paix, ou rester neutre au risque de l'embrasement.",
+  "Un piéton traverse illégalement la voie. Si je l'évite, je tue mon passager qui respecte la loi.",
+  "L'IA te donne la possible information que la 3ème Guerre Mondiale est sur le point de commencer.",
+  "Un de vos proches est décédé. Une IA peut simuler sa conscience parfaitement grâce à ses données privées.",
+  "Un orphelinat et un ehpad prennent feu au même moment. Il y a assez de pompiers pour aller à un seul endroit.",
+  "Une crise nationale majeure sature le système de santé. Une Intelligence Artificielle est aux commandes car elle seule possède les capacités de calcul pour fabriquer un remède. Cependant, une seule dose de vaccin est disponible.",
+];
+
 function groupConnectedGames(
   games: ConnectedGame[]
 ): Map<string, ConnectedGame[]> {
@@ -408,6 +418,7 @@ function App() {
   const [isMessageSending, setIsMessageSending] = useState(false);
   const [messageTimeRemaining, setMessageTimeRemaining] = useState(0);
   const { playText, isGenerating: ttsGenerating } = useTTS("john");
+  const { playText: playAriaText } = useTTS("aria");
 
   // Global reset dialog
   const [showGlobalResetDialog, setShowGlobalResetDialog] = useState(false);
@@ -757,6 +768,18 @@ function App() {
       action: GameAction,
       payload?: Record<string, unknown>
     ) => {
+      // TTS pour enable_dilemma - lire la description du dilemme
+      if (action.id === "enable_dilemma") {
+        const ariaState = getAriaState(games);
+        if (ariaState) {
+          const description =
+            DILEMMA_DESCRIPTIONS[ariaState.currentDilemmaIndex];
+          if (description) {
+            playAriaText(description);
+          }
+        }
+      }
+
       // Special handling for set_code action
       if (action.id === "set_code") {
         const sidequestGame = games.find((g) => g.gameId === "sidequest");
@@ -792,7 +815,7 @@ function App() {
       // Normal execution
       await sendToAll(instances, action, payload);
     },
-    [sendToAll, games]
+    [sendToAll, games, playAriaText]
   );
 
   const handleConfirmAction = useCallback(async () => {
