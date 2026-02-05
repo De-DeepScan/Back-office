@@ -25,6 +25,8 @@ const AUDIO_EVENTS_ALL = [
   "audio:set-ambient-volume",
   "audio:stop-all",
   "audio:master-volume",
+  "audio:duck-ambient",
+  "audio:unduck-ambient",
 ] as const;
 
 interface PlayAmbientPayload {
