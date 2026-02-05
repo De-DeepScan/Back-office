@@ -388,9 +388,9 @@ interface ConfirmDialogState {
 }
 
 function App() {
-  // Check if we're in popout mode for webcams
-  const isPopoutMode =
-    new URLSearchParams(window.location.search).get("popout") === "webcams";
+  // Check if we should show cameras in sidebar (instead of logs)
+  const showCamsInSidebar =
+    new URLSearchParams(window.location.search).get("view") === "cams";
 
   const [games, setGames] = useState<ConnectedGame[]>([]);
   const [connected, setConnected] = useState(false);
@@ -867,16 +867,6 @@ function App() {
     return statuses[`${gameId}:${actionId}`] ?? "idle";
   };
 
-  // Popout mode: render only webcams and timeline
-  if (isPopoutMode) {
-    return (
-      <div className="webcam-popout-container">
-        <WebcamViewer isPopoutMode={true} />
-        <EventTimeline events={events} />
-      </div>
-    );
-  }
-
   return (
     <div className="dashboard">
       <Navbar
@@ -887,8 +877,11 @@ function App() {
         usbKeyConnected={usbKeyConnected}
       />
       <aside className="webcam-sidebar">
-        <WebcamViewer />
-        <EventTimeline events={events} />
+        {showCamsInSidebar ? (
+          <WebcamViewer />
+        ) : (
+          <EventTimeline events={events} />
+        )}
       </aside>
 
       <main className="controls">
