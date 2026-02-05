@@ -186,6 +186,7 @@
 .timeline-header {
   display: flex;
   align-items: center;
+  gap: var(--space-sm);
   height: 60px;
   padding: 0 var(--space-lg);
   border-bottom: 1px solid rgba(0, 255, 255, 0.15);
