@@ -542,8 +542,8 @@ function App() {
   );
 
   useEffect(() => {
-    // Don't auto-switch if we're on sound_control or webcam tab
-    if (activeTab === "sound_control" || activeTab === "webcam") return;
+    // Don't auto-switch if we're on sound_control tab
+    if (activeTab === "sound_control") return;
 
     // Auto-select first game tab if no valid game tab is active
     if (
@@ -553,12 +553,8 @@ function App() {
       setActiveTab(groups[0].baseId);
     }
 
-    // Clear tab if no games available and not on sound_control/webcam
-    if (
-      groups.length === 0 &&
-      activeTab !== "sound_control" &&
-      activeTab !== "webcam"
-    ) {
+    // Clear tab if no games available and not on sound_control
+    if (groups.length === 0 && activeTab !== "sound_control") {
       setActiveTab(null);
     }
   }, [groups, activeTab]);
@@ -798,12 +794,13 @@ function App() {
         onTabChange={setActiveTab}
         usbKeyConnected={usbKeyConnected}
       />
-      <EventTimeline events={events} />
+      <aside className="webcam-sidebar">
+        <WebcamViewer />
+        <EventTimeline events={events} />
+      </aside>
 
       <main className="controls">
-        {activeTab === "webcam" ? (
-          <WebcamViewer />
-        ) : activeTab === "sound_control" ? (
+        {activeTab === "sound_control" ? (
           <ControleAudio audioPlayers={audioPlayers} />
         ) : activeGroup ? (
           <div className="game-panel">
