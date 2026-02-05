@@ -18,6 +18,7 @@ import {
   RotateCcw,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { useTTS } from "../hooks/useTTS";
 import "./ControleAudio.css";
 
 // Types
@@ -31,6 +32,7 @@ interface PresetConfig {
   label: string;
   file: string;
   phase: number;
+  chainedFile?: string;
 }
 
 interface PresetState {
@@ -69,20 +71,14 @@ const PRESETS: PresetConfig[] = [
   },
   // Phase 2 - Tchat (ancien phase 4)
   {
-    id: "phase-3-01",
-    label: "Ah oui",
-    file: "phase-3-01-ah-oui.mp3",
+    id: "phase-3-merci-combo",
+    label: "Merci + Quelques secondes",
+    file: "phase-3-02-merci.mp3",
     phase: 2,
-  },
-  { id: "phase-3-02", label: "Merci", file: "phase-3-02-merci.mp3", phase: 2 },
-  {
-    id: "phase-3-03",
-    label: "Quelques secondes",
-    file: "phase-3-03-quelques-secondes.mp3",
-    phase: 2,
+    chainedFile: "phase-3-03-quelques-secondes.mp3",
   },
   // Phase 3 - Prise de controle (ancien phase 5)
-  { id: "phase-5", label: "Phase 5", file: "phase-5.mp3", phase: 3 },
+  { id: "phase-5", label: "Prise de contrôle", file: "phase-5.mp3", phase: 3 },
   // Phase 4 - Jeux (ancien phase 6)
   {
     id: "phase-5-01",
@@ -345,6 +341,9 @@ export function ControleAudio({
   onLaunchAria,
   isAriaLaunching,
 }: ControleAudioProps) {
+  // TTS hook for John voice (used for "Attendez les gars..." message)
+  const { playText: playJohnText, isBusy: isJohnBusy } = useTTS("john");
+
   // Phase progression state (persisted)
   const [currentPhase, setCurrentPhase] = useState(() => {
     const stored = localStorage.getItem("sc_current_phase");
@@ -414,6 +413,11 @@ export function ControleAudio({
 
   // Preset states (each preset is independent)
   const [presetStates, setPresetStates] = useState<Record<string, PresetState>>(
+    {}
+  );
+
+  // Track which presets are playing their chained file (presetId -> true)
+  const [chainedPlaying, setChainedPlaying] = useState<Record<string, boolean>>(
     {}
   );
 
@@ -540,16 +544,36 @@ export function ControleAudio({
     }) => {
       // Determine presetId based on index (100+ = quick response)
       let presetId: string;
+      let preset: PresetConfig | undefined;
       if (data.presetIdx >= 100) {
         presetId = `quick-${data.presetIdx - 100}`;
       } else {
-        const preset = PRESETS[data.presetIdx];
+        preset = PRESETS[data.presetIdx];
         if (!preset) return;
         presetId = preset.id;
       }
 
       if (data.ended) {
+        // Check if this preset has a chained file and we haven't played it yet
+        if (preset?.chainedFile && !chainedPlaying[presetId]) {
+          // Mark as playing chained file
+          setChainedPlaying((prev) => ({ ...prev, [presetId]: true }));
+          // Play the chained file using the same preset index
+          socket.emit("audio:play-preset", {
+            presetIdx: data.presetIdx,
+            file: preset.chainedFile,
+          });
+          enableAriaSpeaking();
+          return;
+        }
+
+        // Reset chained state and clean up
         disableAriaSpeaking();
+        setChainedPlaying((prev) => {
+          const next = { ...prev };
+          delete next[presetId];
+          return next;
+        });
         setPresetStates((prev) => {
           const next = { ...prev };
           delete next[presetId];
@@ -571,7 +595,7 @@ export function ControleAudio({
     return () => {
       socket.off("audio:preset-progress", onProgress);
     };
-  }, []);
+  }, [chainedPlaying]);
 
   // Handle volume changes
   const handleIaVolume = useCallback(
@@ -1055,6 +1079,24 @@ export function ControleAudio({
             <label className="sc-input-label">
               PRESETS - Phase {selectedPhase}
             </label>
+
+            {/* TTS Button for Phase 2 - John voice (before other presets) */}
+            {selectedPhase === 2 && (
+              <button
+                className={`sc-tts-john-btn ${isJohnBusy ? "busy" : ""}`}
+                onClick={() =>
+                  playJohnText(
+                    "Attendez les gars, je crois que j'ai besoin que vous branchiez un câble pour moi."
+                  )
+                }
+                disabled={isJohnBusy}
+              >
+                {isJohnBusy
+                  ? "Génération..."
+                  : "Attendez les gars... (voix John)"}
+              </button>
+            )}
+
             <div className="sc-preset-list">
               {selectedPresets.map((preset) => {
                 const globalIdx = PRESETS.indexOf(preset);
