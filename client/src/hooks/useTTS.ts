@@ -1,6 +1,17 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { socket } from "../socket";
 
+// Estimate TTS duration based on text length (characters)
+// Average speaking rate: ~150 words/min = 2.5 words/sec
+// Average word length: ~5 chars, so ~12.5 chars/sec
+// Add buffer for pauses and ElevenLabs processing
+function estimateTTSDuration(text: string): number {
+  const charsPerSecond = 12;
+  const baseSeconds = text.length / charsPerSecond;
+  const bufferSeconds = 2; // Processing and natural pauses
+  return (baseSeconds + bufferSeconds) * 1000; // Return in ms
+}
+
 function blobToBase64(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -97,6 +108,9 @@ export function useTTS(voiceName: string = "aria") {
 
       if (!text.trim()) return;
 
+      // Estimate duration for ducking
+      const estimatedDuration = estimateTTSDuration(text);
+
       setIsGenerating(true);
       try {
         const res = await fetch(
@@ -122,12 +136,21 @@ export function useTTS(voiceName: string = "aria") {
         if (res.ok) {
           const blob = await res.blob();
           const audioBase64 = await blobToBase64(blob);
+
+          // Duck ambient sounds by 20% before playing TTS
+          socket.emit("audio:duck-ambient", { factor: 0.8 });
+
           socket.emit("audio:play-tts", {
             audioBase64,
             mimeType: blob.type || "audio/mpeg",
           });
           setIsPlaying(true);
-          setTimeout(() => setIsPlaying(false), 5000);
+
+          // Restore ambient volume after estimated duration
+          setTimeout(() => {
+            socket.emit("audio:unduck-ambient");
+            setIsPlaying(false);
+          }, estimatedDuration);
         }
       } catch (err) {
         console.error("TTS error:", err);
