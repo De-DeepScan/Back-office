@@ -242,6 +242,30 @@ const QUICK_RESPONSES: PresetConfig[] = [
     file: "random/Indice sac.mp3",
     phase: 0,
   },
+  {
+    id: "global-sound-2",
+    label: "Global Sound 2",
+    file: "global-sound-2.mp3",
+    phase: 0,
+  },
+  {
+    id: "global-sound-3",
+    label: "Global Sound 3",
+    file: "global-sound-3.mp3",
+    phase: 0,
+  },
+  {
+    id: "global-sound-4",
+    label: "Global Sound 4",
+    file: "global-sound-4.mp3",
+    phase: 0,
+  },
+  {
+    id: "global-sound-5",
+    label: "Global Sound 5",
+    file: "global-sound-5.mp3",
+    phase: 0,
+  },
 ];
 
 // Dilemma TTS configurations (5 dilemmas)
