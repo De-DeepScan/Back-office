@@ -1497,7 +1497,6 @@ export function ControleAudio({
                 onKeyDown={(e) => handleKeyPress(e, handleManualSend)}
                 placeholder="Voix ARIA + Entrée"
                 className="sc-input"
-                disabled={isGenerating || isApiPlaying}
               />
             </div>
             <div className="sc-input-section">
@@ -1509,7 +1508,6 @@ export function ControleAudio({
                 onKeyDown={(e) => handleKeyPress(e, handleManualSendJohn)}
                 placeholder="Voix John + Entrée"
                 className="sc-input"
-                disabled={isGenerating || isApiPlaying}
               />
             </div>
           </div>
